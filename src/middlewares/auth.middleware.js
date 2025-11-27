@@ -1,8 +1,8 @@
-import jwt from "jsonwebtoken";
-import User from "../models/user.model.js";
-import ApiError from "../utils/ApiError.js";
-import { getRedisClient } from "../config/redis.js";
-import { isSessionActive } from "../config/token.js";
+import jwt from 'jsonwebtoken';
+import User from '../models/user.model.js';
+import ApiError from '../utils/ApiError.js';
+import { getRedisClient } from '../config/redis.js';
+import { isSessionActive } from '../config/token.js';
 
 const USER_CACHE_TTL = 60 * 60; // 1 hour
 
@@ -10,21 +10,21 @@ const USER_CACHE_TTL = 60 * 60; // 1 hour
  * Clear cookies with correct security flags
  */
 function clearAuthCookies(res) {
-  const isProd = process.env.NODE_ENV === "production";
+  const isProd = process.env.NODE_ENV === 'production';
 
   const baseOptions = {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? "none" : "lax",
+    sameSite: isProd ? 'none' : 'lax',
   };
 
-  res.clearCookie("accessToken", baseOptions);
-  res.clearCookie("refreshToken", baseOptions);
+  res.clearCookie('accessToken', baseOptions);
+  res.clearCookie('refreshToken', baseOptions);
 
   // CSRF token is NOT httpOnly
-  res.clearCookie("csrfToken", {
+  res.clearCookie('csrfToken', {
     secure: isProd,
-    sameSite: isProd ? "none" : "lax",
+    sameSite: isProd ? 'none' : 'lax',
   });
 }
 
@@ -36,28 +36,28 @@ export const isAuth = async (req, res, next) => {
     const redisClient = getRedisClient();
     const token = req.cookies.accessToken;
 
+    // No access token present → user not logged in
     if (!token) {
-      throw new ApiError(401, "Please login first");
+      return next(new ApiError(403, 'Not authenticated'));
     }
 
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_ACCESS_TOKEN_SECRET);
     } catch (err) {
-      throw new ApiError(401, "Invalid or expired token");
+      // Access token expired or invalid → allow frontend to auto-refresh
+      return next(new ApiError(403, 'ACCESS_TOKEN_EXPIRED'));
     }
 
-    // Validate session via Redis
+    // Check active session in Redis
     const validSession = await isSessionActive(decoded.id, decoded.sessionId);
+
     if (!validSession) {
       clearAuthCookies(res);
-      throw new ApiError(
-        401,
-        "Session expired or logged in from another device"
-      );
+      return next(new ApiError(403, 'ACCESS_TOKEN_EXPIRED'));
     }
 
-    // Check user cache
+    // Try to get cached user
     const cachedUser = await redisClient.get(`user:${decoded.id}`);
     if (cachedUser) {
       req.user = JSON.parse(cachedUser);
@@ -66,22 +66,17 @@ export const isAuth = async (req, res, next) => {
     }
 
     // Fetch from DB
-    const user = await User.findById(decoded.id).select("-password");
-    if (!user) throw new ApiError(404, "User not found");
+    const user = await User.findById(decoded.id).select('-password');
+    if (!user) return next(new ApiError(404, 'User not found'));
 
-    // Cache for next time
-    await redisClient.setEx(
-      `user:${user._id}`,
-      USER_CACHE_TTL,
-      JSON.stringify(user)
-    );
+    await redisClient.setEx(`user:${user._id}`, 3600, JSON.stringify(user));
 
     req.user = user;
     req.sessionId = decoded.sessionId;
 
     next();
   } catch (err) {
-    next(err); // Pass to global error handler
+    next(err);
   }
 };
 
@@ -89,10 +84,10 @@ export const isAuth = async (req, res, next) => {
  * Admin-only middleware
  */
 export const isAdmin = (req, res, next) => {
-  if (!req.user) throw new ApiError(401, "Unauthorized");
+  if (!req.user) throw new ApiError(401, 'Unauthorized');
 
-  if (req.user.role !== "admin") {
-    throw new ApiError(403, "Admin access required");
+  if (req.user.role !== 'admin') {
+    throw new ApiError(403, 'Admin access required');
   }
 
   next();
