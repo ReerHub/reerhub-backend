@@ -22,8 +22,8 @@ router.post('/register', validate(registerSchema), registerUser);
 router.post('/verify/:token', verifyUser);
 router.post('/login', validate(loginUserSchema), loginUser);
 router.post('/verify', verifyOtp);
-router.post('/refresh', verifyCSRFToken, refreshToken);
+router.post('/refresh', refreshToken);
 router.post('/logout', isAuth, verifyCSRFToken, logoutUser);
-router.post('/refresh-csrf', isAuth, verifyCSRFToken, refreshCSRF);
+router.post('/refresh-csrf', isAuth, refreshCSRF);
 
 export default router;
