@@ -1,11 +1,16 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import sanitize from 'mongo-sanitize';
+import { OAuth2Client } from 'google-auth-library';
 
 import { getRedisClient } from '../config/redis.js';
 import { sendMail } from '../config/mail.js';
 
-import { getOtpHtml, getVerifyEmailHtml } from '../utils/emailTemplates/index.js';
+import {
+  getOtpHtml,
+  getVerifyEmailHtml,
+  getResetPasswordHtml,
+} from '../utils/emailTemplates/index.js';
 
 import {
   generateToken,
@@ -183,5 +188,202 @@ export const refreshCSRF = TryCatch(async (req, res) => {
   res.json({
     message: 'CSRF refreshed',
     csrfToken: newToken,
+  });
+});
+
+export const googleLogin = TryCatch(async (req, res) => {
+  const { idToken } = sanitize(req.body);
+
+  if (!idToken) throw new ApiError(400, 'idToken is required');
+
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    throw new ApiError(500, 'Google client ID not configured');
+  }
+
+  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+  let payload;
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    payload = ticket.getPayload();
+  } catch (err) {
+    throw new ApiError(400, 'Invalid Google ID token');
+  }
+
+  const email = (payload.email || '').toLowerCase();
+  const googleId = payload.sub;
+  const name = payload.name || email.split('@')[0];
+
+  if (!email) throw new ApiError(400, 'Google account has no email');
+
+  // Find existing user
+  let user = await User.findOne({ email }).select(
+    '+password +resetPasswordToken +resetPasswordExpires'
+  );
+
+  if (user) {
+    // If this account previously was not linked to Google, link it now
+    if (!user.isGoogleUser) {
+      user.googleId = googleId;
+      user.isGoogleUser = true;
+      // Do NOT overwrite password (we keep existing password)
+      await user.save();
+    }
+  } else {
+    // Create a new user for Google sign-in
+    const randomPassword = crypto.randomBytes(16).toString('hex');
+    const hashed = await bcrypt.hash(randomPassword, 10);
+
+    user = await User.create({
+      name,
+      email,
+      password: hashed,
+      isGoogleUser: true,
+      googleId,
+    });
+  }
+
+  // Generate tokens (skip OTP)
+  const tokenData = await generateToken(user._id, res);
+
+  res.json({
+    message: `Welcome ${user.name}`,
+    user,
+    sessionInfo: {
+      sessionId: tokenData.sessionId,
+      loginTime: new Date().toISOString(),
+      csrfToken: tokenData.csrfToken,
+    },
+  });
+});
+
+export const forgotPassword = TryCatch(async (req, res) => {
+  const { email: raw } = sanitize(req.body);
+  const email = (raw || '').toLowerCase();
+
+  if (!email) throw new ApiError(400, 'Email required');
+
+  const user = await User.findOne({ email }).select(
+    '+resetPasswordToken +resetPasswordExpires +isGoogleUser'
+  );
+
+  // Security: always respond with success message to avoid user enumeration.
+  const successResponse = {
+    message: 'If an account exists for this email, a password reset link has been sent.',
+  };
+
+  if (!user) {
+    return res.json(successResponse);
+  }
+
+  // If user is a Google-only account, instruct to use Google login instead
+  if (user.isGoogleUser) {
+    // Do not send reset mail for Google-only accounts to avoid confusing users
+    return res.json({
+      message: 'Account registered via Google. Use "Continue with Google" to login.',
+    });
+  }
+
+  // create token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const hashed = crypto.createHash('sha256').update(resetToken).digest('hex');
+  const expires = Date.now() + 60 * 60 * 1000; // 1 hour
+
+  user.resetPasswordToken = hashed;
+  user.resetPasswordExpires = new Date(expires);
+
+  await user.save();
+
+  // Send email with plain resetToken
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const resetLink = `${frontendUrl}/reset-password/${resetToken}`;
+
+  try {
+    await sendMail({
+      to: user.email,
+      subject: 'Reset your password',
+      html: getResetPasswordHtml({ name: user.name, resetLink }),
+    });
+  } catch (err) {
+    // cleanup token on failure
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+    throw new ApiError(500, 'Failed to send reset email');
+  }
+
+  return res.json(successResponse);
+});
+
+// ---------- NEW: resetPassword ----------
+export const resetPassword = TryCatch(async (req, res) => {
+  const { token, password } = sanitize(req.body);
+
+  if (!token || !password) throw new ApiError(400, 'Token and new password are required');
+
+  const hashed = crypto.createHash('sha256').update(token).digest('hex');
+
+  const user = await User.findOne({
+    resetPasswordToken: hashed,
+    resetPasswordExpires: { $gt: new Date() },
+  }).select('+password +resetPasswordToken +resetPasswordExpires +isGoogleUser');
+
+  if (!user) throw new ApiError(400, 'Invalid or expired token');
+
+  if (user.isGoogleUser) {
+    // If account is Google-linked, do not allow password reset (prefer Google flow)
+    throw new ApiError(
+      400,
+      'This account uses Google Sign-In. Use "Continue with Google" to login.'
+    );
+  }
+
+  const newHashedPassword = await bcrypt.hash(password, 10);
+  user.password = newHashedPassword;
+
+  user.resetPasswordToken = null;
+  user.resetPasswordExpires = null;
+
+  await user.save();
+
+  // Based on your preference selected: we will NOT auto-login (you chose redirect to login)
+  // Respond success so client redirects to login page.
+  res.json({ message: 'Password updated. Please login with your new password.' });
+});
+
+export const resendOtp = TryCatch(async (req, res) => {
+  const redisClient = getRedisClient();
+  const { email } = sanitize(req.body);
+
+  if (!email) throw new ApiError(400, 'Email is required');
+
+  // Check if user exists
+  const user = await User.findOne({ email });
+  if (!user) throw new ApiError(400, 'User not found');
+
+  // Prevent spam — cooldown of 60 seconds per email
+  const cooldownKey = `otp-cooldown:${email}`;
+  const cooldown = await redisClient.get(cooldownKey);
+
+  if (cooldown) {
+    throw new ApiError(429, 'Please wait a minute before requesting another OTP');
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  await redisClient.set(`otp:${email}`, otp, { EX: 300 });
+  await redisClient.set(cooldownKey, 'true', { EX: 60 });
+
+  await sendMail({
+    to: email,
+    subject: 'Your OTP',
+    html: getOtpHtml({ email, otp }),
+  });
+
+  res.json({
+    message: 'A new OTP has been sent. Valid for 5 minutes.',
   });
 });

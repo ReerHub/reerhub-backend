@@ -1,3 +1,5 @@
+// src/routes/auth.routes.js
+
 import express from 'express';
 
 import {
@@ -8,6 +10,10 @@ import {
   refreshToken,
   logoutUser,
   refreshCSRF,
+  googleLogin,
+  forgotPassword,
+  resetPassword,
+  resendOtp,
 } from '../controllers/auth.controller.js';
 
 import { validate } from '../middlewares/validate.middleware.js';
@@ -22,6 +28,15 @@ router.post('/register', validate(registerSchema), registerUser);
 router.post('/verify/:token', verifyUser);
 router.post('/login', validate(loginUserSchema), loginUser);
 router.post('/verify', verifyOtp);
+router.post('/resend-otp', resendOtp);
+
+// NEW: google login
+router.post('/google', googleLogin);
+
+// NEW: forgot/reset
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
+
 router.post('/refresh', refreshToken);
 router.post('/logout', isAuth, verifyCSRFToken, logoutUser);
 router.post('/refresh-csrf', isAuth, refreshCSRF);
