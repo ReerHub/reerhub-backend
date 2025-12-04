@@ -4,7 +4,7 @@ import app from './app.js'; // ✔ express app with routes + middleware
 import connectDB from './config/db.js';
 import { connectRedis } from './config/redis.js';
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 
 (async () => {
   try {
