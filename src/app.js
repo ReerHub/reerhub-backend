@@ -6,6 +6,7 @@ import securityMiddlewares from './config/security.js';
 
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
+import resumeRoutes from './routes/resume.routes.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 
 const app = express();
@@ -48,6 +49,7 @@ app.get('/', (req, res) => {
 // 6. ROUTES
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/user', userRoutes);
+app.use('/api/v1/resume', resumeRoutes);
 
 // 7. GLOBAL ERROR HANDLER (must be last)
 app.use(errorMiddleware);
