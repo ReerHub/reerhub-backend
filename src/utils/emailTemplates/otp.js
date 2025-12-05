@@ -135,9 +135,9 @@ export function getOtpHtml({ email, otp }) {
 
   <!-- Footer -->
   <div class="footer">
-    <p>© ${currentYear} Amanox AI. All rights reserved.</p>
+    <p>© ${currentYear} Amanox. All rights reserved.</p>
     <p>
-      Need help? <a href="#" class="link">Contact Support</a>
+      Need help? <a href="https://www.amanox.in/contact-us" class="link">Contact Support</a>
     </p>
   </div>
 </div>

@@ -56,7 +56,7 @@ export function getOtpHtml({ email, otp }) {
     <p class="text" style="font-size: 13px; margin-bottom: 0;">This code expires in 5 minutes. If you didn't request this, please ignore this email.</p>
   </div>
   <div class="footer">
-    <p>© ${currentYear} Amanox AI. All rights reserved.</p>
+    <p>© ${currentYear} Amanox. All rights reserved.</p>
     <p>Need help? <a href="#" class="link">Contact Support</a></p>
   </div>
 </div>
@@ -102,7 +102,7 @@ export function getResetPasswordHtml({ name = 'User', resetLink }) {
     <a href="${resetLink}" class="break-link">${resetLink}</a>
   </div>
   <div class="footer">
-    <p>© ${currentYear} Amanox AI. All rights reserved.</p>
+    <p>© ${currentYear} Amanox. All rights reserved.</p>
   </div>
 </div>
 </body>
@@ -151,7 +151,7 @@ export function getVerifyEmailHtml({ email, token }) {
     <a href="${verifyUrl}" class="break-link">${verifyUrl}</a>
   </div>
   <div class="footer">
-    <p>© ${currentYear} Amanox AI. All rights reserved.</p>
+    <p>© ${currentYear} Amanox. All rights reserved.</p>
   </div>
 </div>
 </body>
