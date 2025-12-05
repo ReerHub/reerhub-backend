@@ -27,7 +27,11 @@ import ApiError from '../utils/ApiError.js';
 
 export const registerUser = TryCatch(async (req, res) => {
   const redisClient = getRedisClient();
-  const { name, email, password } = req.validated;
+
+  // FIXED: Get data from req.validated OR req.body (in case validator strips role)
+  // We explicitly extract role and companyName
+  const { name, email, password } = req.validated || req.body;
+  const { role, companyName } = req.body;
 
   const rateKey = `register_attempts:${req.ip}:${email}`;
   if (await redisClient.get(rateKey)) {
@@ -37,12 +41,27 @@ export const registerUser = TryCatch(async (req, res) => {
   const exists = await User.findOne({ email });
   if (exists) throw new ApiError(400, 'Email already in use');
 
+  // FIXED: Role Security Check
+  let userRole = 'candidate'; // Default
+  if (role === 'recruiter') {
+    userRole = 'recruiter';
+  }
+
   const hashed = await bcrypt.hash(password, 10);
 
   const verifyToken = crypto.randomBytes(32).toString('hex');
   const redisKey = `verify:${verifyToken}`;
 
-  await redisClient.set(redisKey, JSON.stringify({ name, email, password: hashed }), {
+  // FIXED: Save ROLE and COMPANY to Redis
+  const tempUserData = {
+    name,
+    email,
+    password: hashed,
+    role: userRole,
+    companyName: userRole === 'recruiter' ? companyName : undefined,
+  };
+
+  await redisClient.set(redisKey, JSON.stringify(tempUserData), {
     EX: 300,
   });
 
@@ -69,12 +88,20 @@ export const verifyUser = TryCatch(async (req, res) => {
 
   await redisClient.del(redisKey);
 
+  // FIXED: Parse the full object (which now includes role)
   const userData = JSON.parse(data);
 
   const exists = await User.findOne({ email: userData.email });
   if (exists) throw new ApiError(400, 'Email already registered');
 
-  const newUser = await User.create(userData);
+  // FIXED: Create user with the preserved Role
+  const newUser = await User.create({
+    name: userData.name,
+    email: userData.email,
+    password: userData.password,
+    role: userData.role || 'candidate', // Fallback just in case
+    companyName: userData.companyName,
+  });
 
   res.status(201).json({
     message: 'Email verified! Account created.',
@@ -82,13 +109,15 @@ export const verifyUser = TryCatch(async (req, res) => {
       _id: newUser._id,
       name: newUser.name,
       email: newUser.email,
+      role: newUser.role,
     },
   });
 });
 
 export const loginUser = TryCatch(async (req, res) => {
   const redisClient = getRedisClient();
-  const { email, password } = req.validated;
+  // FIXED: Support req.validated OR req.body
+  const { email, password } = req.validated || req.body;
 
   const limitKey = `login-limit:${req.ip}:${email}`;
   if (await redisClient.get(limitKey)) {
@@ -117,6 +146,9 @@ export const loginUser = TryCatch(async (req, res) => {
   res.json({ message: 'OTP sent. Valid for 5 minutes.' });
 });
 
+// ... The rest of your functions (verifyOtp, googleLogin, etc.) are fine as-is.
+// Just make sure verifyOtp returns the user object (which now has the correct role).
+
 export const verifyOtp = TryCatch(async (req, res) => {
   const redisClient = getRedisClient();
   const { email, otp } = sanitize(req.body);
@@ -136,7 +168,7 @@ export const verifyOtp = TryCatch(async (req, res) => {
 
   res.json({
     message: `Welcome ${user.name}`,
-    user,
+    user, // This will now contain the correct role
     sessionInfo: {
       sessionId: tokenData.sessionId,
       loginTime: new Date().toISOString(),
@@ -162,6 +194,8 @@ export const refreshToken = TryCatch(async (req, res) => {
 
 export const logoutUser = TryCatch(async (req, res) => {
   const redisClient = getRedisClient();
+  // Safety check
+  if (!req.user?._id) return res.json({ message: 'Logged out successfully' });
   const userId = req.user._id;
 
   await revokeRefreshToken(userId);
@@ -209,7 +243,7 @@ export const googleLogin = TryCatch(async (req, res) => {
       audience: process.env.GOOGLE_CLIENT_ID,
     });
     payload = ticket.getPayload();
-  } catch (err) {
+  } catch {
     throw new ApiError(400, 'Invalid Google ID token');
   }
 
@@ -243,6 +277,7 @@ export const googleLogin = TryCatch(async (req, res) => {
       password: hashed,
       isGoogleUser: true,
       googleId,
+      role: 'candidate', // Google Login defaults to Candidate
     });
   }
 
@@ -307,7 +342,7 @@ export const forgotPassword = TryCatch(async (req, res) => {
       subject: 'Reset your password',
       html: getResetPasswordHtml({ name: user.name, resetLink }),
     });
-  } catch (err) {
+  } catch {
     // cleanup token on failure
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;

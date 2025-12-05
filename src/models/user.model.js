@@ -1,5 +1,3 @@
-// src/models/user.model.js
-
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema(
@@ -15,7 +13,7 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: [true, 'Email is required'],
-      unique: true, // ← this ALREADY creates an index
+      unique: true,
       lowercase: true,
       trim: true,
     },
@@ -26,10 +24,21 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
 
+    // UPDATED ROLES
+    // 'candidate' = Job Seeker (formerly 'user')
+    // 'recruiter' = Company/HR
+    // 'admin' = System Admin
     role: {
       type: String,
-      enum: ['user', 'admin'],
-      default: 'user',
+      enum: ['candidate', 'recruiter', 'admin', 'user'], // Kept 'user' for safety
+      default: 'candidate',
+    },
+
+    // Optional: Company details for recruiters
+    companyName: {
+      type: String,
+      trim: true,
+      default: null,
     },
 
     googleId: {

@@ -1,5 +1,7 @@
 import { extractTextFromFile } from '../utils/fileParser.js';
-import { analyzeResume } from '../services/ai.service.js';
+// Import BOTH services
+import { analyzeForCandidate } from '../services/ai.candidate.service.js';
+import { analyzeForRecruiter } from '../services/ai.recruiter.service.js';
 import ApiError from '../utils/ApiError.js';
 
 export const analyze = async (req, res, next) => {
@@ -10,35 +12,38 @@ export const analyze = async (req, res, next) => {
 
     // 1. Extract Text
     const rawText = await extractTextFromFile(req.file.buffer, req.file.mimetype);
-
     if (!rawText || rawText.trim().length === 0) {
-      throw new ApiError(
-        400,
-        'Unable to read text from this file. It might be an image-only PDF.'
-      );
+      throw new ApiError(400, 'Unable to read text from file.');
     }
 
-    // 2. Parse Selected Models from FormData
-    // FormData sends arrays as 'models[]' or JSON strings. Let's handle JSON string safely.
+    // 2. Parse Inputs
     let selectedModels = [];
     if (req.body.models) {
       try {
         selectedModels = JSON.parse(req.body.models);
       } catch {
-        // If it's not JSON, maybe it's just a single string or already an object?
-        // Fallback: split by comma if simple string
-        if (typeof req.body.models === 'string') {
+        if (typeof req.body.models === 'string')
           selectedModels = req.body.models.split(',');
-        }
       }
     }
+    const jobDescription = req.body.jobDescription || null;
 
-    // 3. Send to AI Service
-    const analysisResult = await analyzeResume(rawText, selectedModels);
+    // 3. ROLE-BASED ROUTING
+    const userRole = req.user.role; // Set by authMiddleware
+
+    let analysisResult;
+
+    if (userRole === 'recruiter') {
+      // Route to Recruiter Brain (Critical, Objective)
+      analysisResult = await analyzeForRecruiter(rawText, selectedModels, jobDescription);
+    } else {
+      // Route to Candidate Brain (Mentoring, Kind) - Default
+      analysisResult = await analyzeForCandidate(rawText, selectedModels, jobDescription);
+    }
 
     res.status(200).json({
       success: true,
-      message: 'Resume analyzed successfully',
+      message: 'Analysis complete',
       data: analysisResult,
     });
   } catch (error) {
