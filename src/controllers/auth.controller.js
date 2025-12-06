@@ -74,7 +74,7 @@ export const registerUser = TryCatch(async (req, res) => {
   await redisClient.set(rateKey, 'true', { EX: 60 });
 
   res.json({
-    message: 'Verification link sent. It expires in 5 minutes.',
+    message: 'Verification link sent. It expires in 5 minutes',
   });
 });
 
