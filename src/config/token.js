@@ -1,8 +1,8 @@
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
-import { getRedisClient } from "./redis.js";
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { getRedisClient } from './redis.js';
 
-import { generateCSRFToken, revokeCSRFToken } from "./csrf.js";
+import { generateCSRFToken, revokeCSRFToken } from './csrf.js';
 
 const ACCESS_TOKEN_EXPIRE = 15 * 60; // 15 minutes
 const REFRESH_TOKEN_EXPIRE = 7 * 24 * 60 * 60; // 7 days
@@ -11,7 +11,7 @@ const SESSION_EXPIRE = 7 * 24 * 60 * 60; // 7 days
 // Create a new session and store session + refresh token in redis
 async function createSession(userId) {
   const redisClient = getRedisClient();
-  const sessionId = crypto.randomBytes(16).toString("hex");
+  const sessionId = crypto.randomBytes(16).toString('hex');
 
   const sessionKey = `session:${sessionId}`;
   const activeSessionKey = `active_session:${userId}`;
@@ -31,11 +31,7 @@ async function createSession(userId) {
     lastActivity: new Date().toISOString(),
   };
 
-  await redisClient.setEx(
-    sessionKey,
-    SESSION_EXPIRE,
-    JSON.stringify(sessionData)
-  );
+  await redisClient.setEx(sessionKey, SESSION_EXPIRE, JSON.stringify(sessionData));
   await redisClient.setEx(activeSessionKey, SESSION_EXPIRE, sessionId);
 
   return sessionId;
@@ -48,7 +44,7 @@ function issueTokens(userId, sessionId) {
     process.env.JWT_ACCESS_TOKEN_SECRET,
     {
       expiresIn: ACCESS_TOKEN_EXPIRE,
-      algorithm: "HS256",
+      algorithm: 'HS256',
     }
   );
 
@@ -57,7 +53,7 @@ function issueTokens(userId, sessionId) {
     process.env.JWT_REFRESH_TOKEN_SECRET,
     {
       expiresIn: REFRESH_TOKEN_EXPIRE,
-      algorithm: "HS256",
+      algorithm: 'HS256',
     }
   );
 
@@ -66,19 +62,27 @@ function issueTokens(userId, sessionId) {
 
 // Set cookies for tokens
 function setAuthCookies(res, accessToken, refreshToken) {
-  const isProd = process.env.NODE_ENV === "production";
+  const isProd = process.env.NODE_ENV === 'production';
 
-  res.cookie("accessToken", accessToken, {
+  const cookieOptions = {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? "none" : "lax",
+    sameSite: isProd ? 'none' : 'lax',
+    path: '/',
+  };
+
+  // Add domain only in production for cross-subdomain access
+  if (isProd) {
+    cookieOptions.domain = '.amanox.in';
+  }
+
+  res.cookie('accessToken', accessToken, {
+    ...cookieOptions,
     maxAge: ACCESS_TOKEN_EXPIRE * 1000,
   });
 
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
+  res.cookie('refreshToken', refreshToken, {
+    ...cookieOptions,
     maxAge: REFRESH_TOKEN_EXPIRE * 1000,
   });
 }
@@ -90,11 +94,7 @@ export async function generateToken(userId, res) {
   const { accessToken, refreshToken } = issueTokens(userId, sessionId);
 
   // Store refresh token in redis
-  await redisClient.setEx(
-    `refresh_token:${userId}`,
-    REFRESH_TOKEN_EXPIRE,
-    refreshToken
-  );
+  await redisClient.setEx(`refresh_token:${userId}`, REFRESH_TOKEN_EXPIRE, refreshToken);
 
   setAuthCookies(res, accessToken, refreshToken);
 
@@ -108,20 +108,13 @@ export async function generateToken(userId, res) {
 export async function verifyRefreshToken(refreshToken) {
   const redisClient = getRedisClient();
   try {
-    const decode = jwt.verify(
-      refreshToken,
-      process.env.JWT_REFRESH_TOKEN_SECRET
-    );
+    const decode = jwt.verify(refreshToken, process.env.JWT_REFRESH_TOKEN_SECRET);
 
-    const storedRefreshToken = await redisClient.get(
-      `refresh_token:${decode.id}`
-    );
+    const storedRefreshToken = await redisClient.get(`refresh_token:${decode.id}`);
 
     if (storedRefreshToken !== refreshToken) return null;
 
-    const activeSessionId = await redisClient.get(
-      `active_session:${decode.id}`
-    );
+    const activeSessionId = await redisClient.get(`active_session:${decode.id}`);
 
     if (activeSessionId !== decode.sessionId) return null;
 
@@ -136,7 +129,7 @@ export async function verifyRefreshToken(refreshToken) {
     await redisClient.setEx(sessionKey, SESSION_EXPIRE, JSON.stringify(parsed));
 
     return decode;
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -148,18 +141,26 @@ export function generateAccessToken(userId, sessionId, res) {
     process.env.JWT_ACCESS_TOKEN_SECRET,
     {
       expiresIn: ACCESS_TOKEN_EXPIRE,
-      algorithm: "HS256",
+      algorithm: 'HS256',
     }
   );
 
-  const isProd = process.env.NODE_ENV === "production";
+  const isProd = process.env.NODE_ENV === 'production';
 
-  res.cookie("accessToken", accessToken, {
+  const cookieOptions = {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? "none" : "lax",
+    sameSite: isProd ? 'none' : 'lax',
     maxAge: ACCESS_TOKEN_EXPIRE * 1000,
-  });
+    path: '/',
+  };
+
+  // Add domain only in production for cross-subdomain access
+  if (isProd) {
+    cookieOptions.domain = '.amanox.in';
+  }
+
+  res.cookie('accessToken', accessToken, cookieOptions);
 }
 
 // Revoke user session completely
