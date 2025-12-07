@@ -194,21 +194,37 @@ export const refreshToken = TryCatch(async (req, res) => {
 
 export const logoutUser = TryCatch(async (req, res) => {
   const redisClient = getRedisClient();
+
   // Safety check
   if (!req.user?._id) return res.json({ message: 'Logged out successfully' });
   const userId = req.user._id;
 
   await revokeRefreshToken(userId);
 
+  const isProd = process.env.NODE_ENV === 'production';
+
   const clearOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    path: '/',
   };
+
+  // Add domain only in production (MUST match the domain used when setting cookies)
+  if (isProd) {
+    clearOptions.domain = '.amanox.in';
+  }
 
   res.clearCookie('accessToken', clearOptions);
   res.clearCookie('refreshToken', clearOptions);
-  res.clearCookie('csrfToken', clearOptions);
+
+  // CSRF cookie has httpOnly: false, so separate options
+  const csrfClearOptions = {
+    ...clearOptions,
+    httpOnly: false, // CSRF token is not httpOnly
+  };
+
+  res.clearCookie('csrfToken', csrfClearOptions);
 
   await redisClient.del(`user:${userId}`);
 
