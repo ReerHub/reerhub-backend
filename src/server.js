@@ -7,8 +7,6 @@ import { connectRedis } from './config/redis.js';
 
 const PORT = process.env.PORT || 8000;
 
-console.log('Loaded CORS URL:', process.env.CORS_FRONTEND_URL);
-
 (async () => {
   try {
     await connectDB();
