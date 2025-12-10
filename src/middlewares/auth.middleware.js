@@ -4,11 +4,6 @@ import ApiError from '../utils/ApiError.js';
 import { getRedisClient } from '../config/redis.js';
 import { isSessionActive } from '../config/token.js';
 
-const USER_CACHE_TTL = 60 * 60; // 1 hour
-
-/**
- * Clear cookies with correct security flags
- */
 function clearAuthCookies(res) {
   const isProd = process.env.NODE_ENV === 'production';
 
@@ -44,7 +39,7 @@ export const isAuth = async (req, res, next) => {
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_ACCESS_TOKEN_SECRET);
-    } catch (err) {
+    } catch {
       // Access token expired or invalid → allow frontend to auto-refresh
       return next(new ApiError(403, 'ACCESS_TOKEN_EXPIRED'));
     }
@@ -57,11 +52,23 @@ export const isAuth = async (req, res, next) => {
       return next(new ApiError(403, 'ACCESS_TOKEN_EXPIRED'));
     }
 
-    // Try to get cached user
     const cachedUser = await redisClient.get(`user:${decoded.id}`);
+
     if (cachedUser) {
       req.user = JSON.parse(cachedUser);
       req.sessionId = decoded.sessionId;
+
+      // Always fetch dynamic fields fresh
+      const fresh = await User.findById(req.user._id).select(
+        'coins coinHistory paymentHistory'
+      );
+
+      if (fresh) {
+        req.user.coins = fresh.coins;
+        req.user.coinHistory = fresh.coinHistory;
+        req.user.paymentHistory = fresh.paymentHistory;
+      }
+
       return next();
     }
 
