@@ -34,6 +34,7 @@
     "nodemailer": "^7.0.10",
     "openai": "^6.9.1",
     "pdfjs-dist": "^5.4.449",
+    "razorpay": "^2.9.6",
     "redis": "^5.9.0",
     "zod": "^4.1.12"
   },

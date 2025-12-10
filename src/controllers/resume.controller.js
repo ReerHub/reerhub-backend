@@ -3,6 +3,8 @@ import { extractTextFromFile } from '../utils/fileParser.js';
 import { analyzeForCandidate } from '../services/ai.candidate.service.js';
 import { analyzeForRecruiter } from '../services/ai.recruiter.service.js';
 import ApiError from '../utils/ApiError.js';
+import User from '../models/user.model.js';
+import { getRedisClient } from '../config/redis.js';
 
 export const analyze = async (req, res, next) => {
   try {
@@ -39,6 +41,22 @@ export const analyze = async (req, res, next) => {
     } else {
       // Route to Candidate Brain (Mentoring, Kind) - Default
       analysisResult = await analyzeForCandidate(rawText, selectedModels, jobDescription);
+      // ONLY deduct coins if AI analysis succeeds
+      const user = await User.findById(req.user._id);
+      user.coins = Math.max(0, user.coins - req.coinCost);
+
+      user.coinHistory.push({
+        type: 'deduct',
+        coins: req.coinCost,
+        description: `Resume analysis using ${selectedModels.length} model(s)`,
+        createdAt: new Date(),
+      });
+
+      await user.save();
+
+      // Clear cache after deduction
+      const redis = getRedisClient();
+      await redis.del(`user:${user._id}`);
     }
 
     res.status(200).json({

@@ -60,6 +60,37 @@ const userSchema = new mongoose.Schema(
       default: null,
       select: false,
     },
+    coins: {
+      type: Number,
+      default: 5, // Give 5 coins on signup & Google login
+    },
+
+    coinHistory: [
+      {
+        type: {
+          type: String,
+          enum: ['deduct', 'refund', 'credit'],
+          required: true,
+        },
+        coins: {
+          type: Number,
+          required: true,
+        },
+        description: { type: String },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    paymentHistory: [
+      {
+        orderId: String,
+        paymentId: String,
+        amount: Number,
+        coins: Number,
+        status: { type: String, enum: ['success', 'failed', 'pending'] },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

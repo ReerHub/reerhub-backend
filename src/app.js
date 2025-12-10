@@ -7,6 +7,7 @@ import securityMiddlewares from './config/security.js';
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import resumeRoutes from './routes/resume.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 
 const app = express();
@@ -20,7 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // 3. CORS - Using environment variable
-const allowedOrigins = (process.env.FRONTEND_URL || '')
+const allowedOrigins = (process.env.CORS_FRONTEND_URL || '')
   .split(',')
   .map((url) => url.trim());
 app.use(
@@ -53,6 +54,7 @@ app.get('/', (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/user', userRoutes);
 app.use('/api/v1/resume', resumeRoutes);
+app.use('/api/v1/payment', paymentRoutes);
 
 // 7. GLOBAL ERROR HANDLER (must be last)
 app.use(errorMiddleware);

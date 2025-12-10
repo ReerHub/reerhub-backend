@@ -4,6 +4,7 @@ import { isAuth } from '../middlewares/auth.middleware.js'; // Your existing aut
 import * as resumeController from '../controllers/resume.controller.js';
 import ApiError from '../utils/ApiError.js';
 import { extendTimeout } from '../middlewares/extendTimeout.middleware.js';
+import { checkAndReserveCoins } from '../middlewares/coin.middleware.js';
 
 const router = express.Router();
 
@@ -34,6 +35,7 @@ router.post(
   isAuth,
   extendTimeout(200000), // ✅ Add 3-minute timeout for this route
   upload.single('resume'),
+  checkAndReserveCoins,
   resumeController.analyze
 );
 
