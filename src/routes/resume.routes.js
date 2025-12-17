@@ -33,7 +33,7 @@ const upload = multer({
 router.post(
   '/analyze',
   isAuth,
-  extendTimeout(200000), // ✅ Add 3-minute timeout for this route
+  extendTimeout(600000), // ✅ Add 10-minute timeout for this route
   upload.single('resume'),
   checkAndReserveCoins,
   resumeController.analyze
