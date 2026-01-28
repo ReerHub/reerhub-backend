@@ -101,7 +101,7 @@ export const verifyUser = TryCatch(async (req, res) => {
     password: userData.password,
     role: userData.role || 'candidate', // Fallback just in case
     companyName: userData.companyName,
-    coins: 5,
+    coins: 20,
   });
 
   res.status(201).json({
@@ -295,7 +295,7 @@ export const googleLogin = TryCatch(async (req, res) => {
       isGoogleUser: true,
       googleId,
       role: 'candidate', // Google Login defaults to Candidate
-      coins: 5,
+      coins: 20,
     });
   }
 

@@ -6,64 +6,37 @@ import ApiError from '../utils/ApiError.js';
 import User from '../models/user.model.js';
 import { getRedisClient } from '../config/redis.js';
 
+// ... imports
 export const analyze = async (req, res, next) => {
   try {
-    if (!req.file) {
-      throw new ApiError(400, 'Please upload a resume file (PDF or DOCX).');
-    }
+    if (!req.file) throw new ApiError(400, 'Please upload a resume file.');
 
-    // 1. Extract Text
     const rawText = await extractTextFromFile(req.file.buffer, req.file.mimetype);
-    if (!rawText || rawText.trim().length === 0) {
-      throw new ApiError(400, 'Unable to read text from file.');
-    }
-
-    // 2. Parse Inputs
-    let selectedModels = [];
-    if (req.body.models) {
-      try {
-        selectedModels = JSON.parse(req.body.models);
-      } catch {
-        if (typeof req.body.models === 'string')
-          selectedModels = req.body.models.split(',');
-      }
-    }
     const jobDescription = req.body.jobDescription || null;
-
-    // 3. ROLE-BASED ROUTING
-    const userRole = req.user.role; // Set by authMiddleware
+    const userRole = req.user.role;
 
     let analysisResult;
 
     if (userRole === 'recruiter') {
-      // Route to Recruiter Brain (Critical, Objective)
-      analysisResult = await analyzeForRecruiter(rawText, selectedModels, jobDescription);
+      analysisResult = await analyzeForRecruiter(rawText, null, jobDescription);
     } else {
-      // Route to Candidate Brain (Mentoring, Kind) - Default
-      analysisResult = await analyzeForCandidate(rawText, selectedModels, jobDescription);
-      // ONLY deduct coins if AI analysis succeeds
+      analysisResult = await analyzeForCandidate(rawText, null, jobDescription);
+
       const user = await User.findById(req.user._id);
       user.coins = Math.max(0, user.coins - req.coinCost);
-
       user.coinHistory.push({
         type: 'deduct',
         coins: req.coinCost,
-        description: `Resume analysis using ${selectedModels.length} model(s)`,
+        description: `Premium AI Resume Analysis`,
         createdAt: new Date(),
       });
-
       await user.save();
 
-      // Clear cache after deduction
       const redis = getRedisClient();
       await redis.del(`user:${user._id}`);
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Analysis complete',
-      data: analysisResult,
-    });
+    res.status(200).json({ success: true, data: analysisResult });
   } catch (error) {
     next(error);
   }
