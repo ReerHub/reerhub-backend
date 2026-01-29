@@ -62,7 +62,7 @@ const userSchema = new mongoose.Schema(
     },
     coins: {
       type: Number,
-      default: 5, // Give 5 coins on signup & Google login
+      default: 20, // Give 5 coins on signup & Google login
     },
 
     coinHistory: [
