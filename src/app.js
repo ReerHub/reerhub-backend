@@ -4,6 +4,10 @@ import morgan from 'morgan';
 import securityMiddlewares from './config/security.js';
 import ApiError from './utils/ApiError.js';
 import errorMiddleware from './middlewares/error.middleware.js';
+import companyRoutes from './routes/company.routes.js';
+import jobSourceRoutes from './routes/jobSource.routes.js';
+import jobRoutes from './routes/job.routes.js';
+import syncLogRoutes from './routes/syncLog.routes.js';
 
 const app = express();
 
@@ -49,7 +53,10 @@ app.get('/api/v1/health', (_req, res) => {
 });
 
 // 6. CAREERHUB ROUTES
-// Company, job source, job, and sync routes will be registered here in Phase 1.
+app.use('/api/v1/companies', companyRoutes);
+app.use('/api/v1/job-sources', jobSourceRoutes);
+app.use('/api/v1/jobs', jobRoutes);
+app.use('/api/v1/sync-logs', syncLogRoutes);
 
 app.use((_req, _res, next) => {
   next(new ApiError(404, 'Route not found'));
