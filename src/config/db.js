@@ -9,7 +9,12 @@ const connectDB = async () => {
     console.log(`✅ MongoDB connected to DB: ${process.env.MONGO_DB_NAME}`);
   } catch (error) {
     console.error('❌ MongoDB connection failed:', error);
+    throw error;
   }
 };
 
 export default connectDB;
+
+export const disconnectDB = async () => {
+  await mongoose.disconnect();
+};

@@ -1,7 +1,7 @@
-import ApiError from "../utils/ApiError.js";
+import ApiError from '../utils/ApiError.js';
 
-const errorMiddleware = (err, req, res, next) => {
-  console.error("🔥 ERROR:", err);
+const errorMiddleware = (err, req, res, _next) => {
+  console.error('🔥 ERROR:', err);
 
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({
@@ -12,7 +12,7 @@ const errorMiddleware = (err, req, res, next) => {
 
   return res.status(500).json({
     success: false,
-    message: "Internal Server Error",
+    message: 'Internal Server Error',
   });
 };
 

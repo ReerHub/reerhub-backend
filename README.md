@@ -1,103 +1,47 @@
-🚀 Searchly Backend
+# CareerHub Backend
 
-A modern, secure authentication backend built with Node.js, Express, MongoDB, and Redis.
-It provides:
+Express API and data-ingestion foundation for CareerHub, an India-first job discovery engine that indexes official company career pages and ATS sources.
 
-User registration with email verification
+## Current scope
 
-Login with OTP
+The backend foundation provides MongoDB, Redis, security middleware, validation, centralized errors, and a health check. CareerHub domain modules will be added in Phase 1:
 
-JWT access + refresh token system
+- Companies
+- Job sources
+- Jobs
+- Job changes
+- Sync logs
 
-Redis-based session management
+The old authentication, resume analysis, payment, coin, email, and AI-recruiting modules have intentionally been removed.
 
-CSRF protection
+## Setup
 
-Clean project structure with validation, middlewares, and error handling
-
-This backend powers the future Searchly job platform.
-
-📦 Tech Used
-
-Node.js (ES Modules)
-
-Express.js
-
-MongoDB + Mongoose
-
-Redis (sessions, OTP, verification tokens)
-
-JWT authentication
-
-Nodemailer (email)
-
-Zod validation
-
-ESLint + Prettier + Husky
-
-🧩 Project Setup
-1️⃣ Clone the Repository
-git clone https://github.com/arfat-sayyed/searchly-backend.git
-cd searchly-backend
-
-2️⃣ Install Dependencies
+```bash
 npm install
-
-3️⃣ Create .env File
-
-Inside the root folder, create .env:
-
-PORT=8000
-
-MONGO_URI=your-mongodb-uri
-REDIS_URL=your-redis-url
-
-SMTP_USER=your-email
-SMTP_PASSWORD=your-smtp-pass
-
-JWT_ACCESS_TOKEN_SECRET=your-secret
-JWT_REFRESH_TOKEN_SECRET=your-secret
-
-FRONTEND_URL=http://localhost:5173
-
-4️⃣ Start Development Server
+cp .env.example .env
 npm run dev
+```
 
-5️⃣ Start Production Server
+## Environment
+
+```dotenv
+PORT=8000
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB_NAME=crhub
+REDIS_URL=redis://localhost:6379
+CORS_FRONTEND_URL=http://localhost:3000
+```
+
+## Current API
+
+```text
+GET /api/v1/health
+```
+
+## Commands
+
+```bash
+npm run dev
 npm start
-
-🚀 API Base URL
-http://localhost:8000/api/v1
-
-📂 Main Routes
-Auth Routes (/api/v1/auth)
-
-POST /register
-
-POST /verify/:token
-
-POST /login
-
-POST /verify
-
-POST /refresh
-
-POST /logout
-
-POST /refresh-csrf
-
-User Routes (/api/v1/user)
-
-GET /me (requires auth)
-
-✔ Ready to Push & Deploy
-
-This backend is production-safe and ready for:
-
-GitHub CI/CD
-
-Docker
-
-AWS deployment
-
-Frontend integration
+npm run lint
+```

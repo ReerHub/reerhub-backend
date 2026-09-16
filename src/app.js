@@ -1,13 +1,8 @@
 import express from 'express';
-import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import morgan from 'morgan';
 import securityMiddlewares from './config/security.js';
-
-import authRoutes from './routes/auth.routes.js';
-import userRoutes from './routes/user.routes.js';
-import resumeRoutes from './routes/resume.routes.js';
-import paymentRoutes from './routes/payment.routes.js';
+import ApiError from './utils/ApiError.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 
 const app = express();
@@ -18,12 +13,12 @@ securityMiddlewares(app);
 // 2. PARSERS
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
 
-// 3. CORS - Using environment variable
-const allowedOrigins = (process.env.CORS_FRONTEND_URL || '')
+// 3. CORS
+const allowedOrigins = (process.env.CORS_FRONTEND_URL || 'http://localhost:3000')
   .split(',')
-  .map((url) => url.trim());
+  .map((url) => url.trim())
+  .filter(Boolean);
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -36,9 +31,8 @@ app.use(
       console.error(`❌ CORS blocked origin: ${origin}`);
       return callback(new Error('Not allowed by CORS'));
     },
-    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
@@ -46,15 +40,20 @@ app.use(
 app.use(morgan('dev'));
 
 // 5. HEALTH CHECK
-app.get('/', (req, res) => {
-  res.send('Server is running...');
+app.get('/api/v1/health', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    service: 'crhub-backend',
+    status: 'ok',
+  });
 });
 
-// 6. ROUTES
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/user', userRoutes);
-app.use('/api/v1/resume', resumeRoutes);
-app.use('/api/v1/payment', paymentRoutes);
+// 6. CAREERHUB ROUTES
+// Company, job source, job, and sync routes will be registered here in Phase 1.
+
+app.use((_req, _res, next) => {
+  next(new ApiError(404, 'Route not found'));
+});
 
 // 7. GLOBAL ERROR HANDLER (must be last)
 app.use(errorMiddleware);
