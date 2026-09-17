@@ -10,9 +10,11 @@ import SyncLog from '../src/models/syncLog.model.js';
 import { syncJobSource } from '../src/services/sync.service.js';
 
 // Non-negotiable #5: a failed source sync must never close existing jobs.
-// Uses the real Mongo (same MONGO_URI as dev) with temp docs, cleaned up after.
+// Uses an isolated test database (never dev/prod), cleaned up after.
 test('failed sync never closes existing jobs', async () => {
-  await mongoose.connect(process.env.MONGO_URI, { dbName: process.env.MONGO_DB_NAME });
+  process.env.NODE_ENV = 'test';
+  const dbName = process.env.MONGO_DB_NAME || 'reerhub-test';
+  await mongoose.connect(process.env.MONGO_URI, { dbName });
 
   const company = await Company.create({
     name: `Test Co ${Date.now()}`,

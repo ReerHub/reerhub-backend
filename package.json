@@ -1,5 +1,5 @@
 {
-  "name": "wareers-backend",
+  "name": "reerhub-backend",
   "version": "1.0.0",
   "main": "src/server.js",
   "type": "module",
@@ -8,7 +8,7 @@
     "dev": "nodemon src/server.js",
     "seed": "node src/scripts/seed.js",
     "backfill": "node src/scripts/backfillCategories.js",
-    "test": "node --test",
+    "test": "NODE_ENV=test node --test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -17,7 +17,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "Wareers API and data-ingestion foundation.",
+  "description": "ReerHub API and data-ingestion foundation.",
   "dependencies": {
     "bullmq": "^5.81.5",
     "cors": "^2.8.5",

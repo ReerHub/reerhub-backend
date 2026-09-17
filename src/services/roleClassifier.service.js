@@ -1,5 +1,5 @@
 /**
- * Deterministic tech taxonomy for Wareers (pure tech platform).
+ * Deterministic tech taxonomy for ReerHub (pure tech platform).
  *
  * Two-level classification: 9 tech tracks, each with canonical roles.
  * `classifyRole()` returns { techTrack, techRole, seniority } or
@@ -48,7 +48,7 @@ const NON_TECH_ROLE_GUARDS = [
   'designer',
 ];
 
-// Titles that look technical but are not engineering roles at Wareers.
+// Titles that look technical but are not engineering roles at ReerHub.
 const NON_TECH_DESIGN_GUARDS = [
   'fashion designer',
   'textile designer',

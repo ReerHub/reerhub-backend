@@ -104,6 +104,7 @@ jobSchema.index(
   }
 );
 jobSchema.index({ companyId: 1, status: 1 });
+jobSchema.index({ companyId: 1, status: 1, isIndiaRole: 1 });
 jobSchema.index({ companyId: 1, status: 1, techTrack: 1 });
 jobSchema.index({ status: 1, techTrack: 1, postedAt: -1 });
 jobSchema.index({ status: 1, techRole: 1, postedAt: -1 });

@@ -1,6 +1,6 @@
-# Wareers Backend
+# ReerHub Backend
 
-Express API and data-ingestion foundation for Wareers, an India-first job discovery engine for engineering and AI roles that indexes official company career pages and ATS sources.
+Express API and data-ingestion foundation for ReerHub, an India-first job discovery engine for engineering and AI roles that indexes official company career pages and ATS sources.
 
 ## Current scope
 
@@ -10,7 +10,7 @@ Express API and data-ingestion foundation for Wareers, an India-first job discov
 - Adapters: Greenhouse, Lever, Ashby, Custom with registry keyed by `source.type`
 - Sync pipeline: parser -> normalizer -> 9-track classifier -> identity -> batched bulkWrite -> change detection -> sync logging, with sync safety (failed fetches never close jobs)
 - Deterministic tech taxonomy (`TAXONOMY` data object: 9 tracks, canonical roles, seniority ladder, `taxonomyVersion`); non-tech drops at ingestion, never stored
-- BullMQ `wareers-sync` queue + worker (`SYNC_CONCURRENCY`), staggered daily crons per source, `POST /job-sources/:id/sync` manual trigger (API key)
+- BullMQ `reerhub-sync` queue + worker (`SYNC_CONCURRENCY`), staggered daily crons per source, `POST /job-sources/:id/sync` manual trigger (API key)
 - API-key write auth (`x-api-key`); reads stay public
 - Idempotent seed for the first 3 companies; companies 4-10 onboarded via API (probe token -> POST rows -> manual sync)
 
@@ -41,7 +41,9 @@ npm run dev
 ```dotenv
 PORT=8000
 MONGO_URI=mongodb://localhost:27017
-MONGO_DB_NAME=wareers
+MONGO_DB_NAME=reerhub-dev
+# Production: use a DIFFERENT database, e.g. MONGO_DB_NAME=reerhub-prod
+# with your Atlas MONGO_URI. Never point prod at reerhub-dev.
 REDIS_URL=redis://localhost:6379
 CORS_FRONTEND_URL=http://localhost:3000
 SYNC_CONCURRENCY=5

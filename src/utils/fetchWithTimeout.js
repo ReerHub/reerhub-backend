@@ -10,7 +10,7 @@ export const fetchWithTimeout = async (url, options = {}) => {
   const response = await globalThis.fetch(url, {
     ...options,
     headers: {
-      'User-Agent': 'WareersBot/1.0 (+https://wareers.com)',
+      'User-Agent': 'ReerHubBot/1.0 (+https://reerhub.com)',
       Accept: 'application/json',
       ...(options.headers || {}),
     },

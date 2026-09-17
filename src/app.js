@@ -36,7 +36,7 @@ app.use(
       return callback(new Error('Not allowed by CORS'));
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
   })
 );
 
@@ -47,12 +47,12 @@ app.use(morgan('dev'));
 app.get('/api/v1/health', (_req, res) => {
   res.status(200).json({
     success: true,
-    service: 'wareers-backend',
+    service: 'reerhub-backend',
     status: 'ok',
   });
 });
 
-// 6. WAREERS ROUTES
+// 6. REERHUB ROUTES
 app.use('/api/v1/companies', companyRoutes);
 app.use('/api/v1/job-sources', jobSourceRoutes);
 app.use('/api/v1/jobs', jobRoutes);

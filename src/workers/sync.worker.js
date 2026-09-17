@@ -18,7 +18,7 @@ export const startSyncWorker = () => {
   if (worker) return worker;
 
   worker = new Worker(
-    'wareers-sync',
+    'reerhub-sync',
     async (job) => {
       const source = await JobSource.findById(job.data.sourceId);
       if (!source) throw new Error(`JobSource not found: ${job.data.sourceId}`);
@@ -44,7 +44,7 @@ export const startSyncWorker = () => {
     console.error(`Sync job ${job?.id} failed:`, error.message);
   });
 
-  console.log('✅ Sync worker started (wareers-sync)');
+  console.log('✅ Sync worker started (reerhub-sync)');
   return worker;
 };
 

@@ -15,9 +15,15 @@ export const listCompanies = TryCatch(async (req, res) => {
   const filter = includeInactive ? {} : { isActive: true };
   const companies = await Company.find(filter).sort({ name: 1 }).lean();
 
+  // India-first: /jobs defaults to indiaOnly=true, so counts must match.
+  // Pass ?indiaOnly=false to include non-India roles in counts.
+  const indiaOnly = req.query.indiaOnly !== 'false';
+  const match = indiaOnly
+    ? { status: 'active', isIndiaRole: true }
+    : { status: 'active' };
   // Single aggregation for live active-job counts (scales to many companies).
   const counts = await Job.aggregate([
-    { $match: { status: 'active' } },
+    { $match: match },
     { $group: { _id: '$companyId', activeJobs: { $sum: 1 } } },
   ]);
   const countByCompany = new Map(counts.map((c) => [String(c._id), c.activeJobs]));
@@ -37,10 +43,18 @@ export const getCompanyBySlug = TryCatch(async (req, res) => {
   if (!company) throw new ApiError(404, 'Company not found');
 
   // Enrich with live counts + active sources so frontend company pages
-  // need one request instead of three.
+  // need one request instead of three. Counts respect indiaOnly (default
+  // true) so the header number always matches the jobs list.
+  const indiaOnly = req.query.indiaOnly !== 'false';
+  const jobMatch = indiaOnly
+    ? { companyId: company._id, status: 'active', isIndiaRole: true }
+    : { companyId: company._id, status: 'active' };
+  const totalMatch = indiaOnly
+    ? { companyId: company._id, isIndiaRole: true }
+    : { companyId: company._id };
   const [activeJobs, totalJobs, sources] = await Promise.all([
-    Job.countDocuments({ companyId: company._id, status: 'active' }),
-    Job.countDocuments({ companyId: company._id }),
+    Job.countDocuments(jobMatch),
+    Job.countDocuments(totalMatch),
     JobSource.find({ companyId: company._id, isActive: true })
       .select('name type careersUrl lastSuccessfulSyncAt')
       .lean(),

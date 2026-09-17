@@ -10,6 +10,11 @@ let warned = false;
 const requireApiKey = (req, _res, next) => {
   const expected = process.env.API_KEY;
   if (!expected) {
+    // Production must never run with open writes. Fail closed so a missing
+    // secret is loud instead of silently unprotected.
+    if (process.env.NODE_ENV === 'production') {
+      return next(new ApiError(500, 'Server misconfigured: API_KEY is not set'));
+    }
     if (!warned) {
       warned = true;
       console.warn('⚠️  API_KEY is not set — write endpoints are unprotected.');

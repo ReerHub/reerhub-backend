@@ -13,7 +13,7 @@ const getRedisConnection = () => {
 
 export const getSyncQueue = () => {
   if (!syncQueue) {
-    syncQueue = new Queue('wareers-sync', {
+    syncQueue = new Queue('reerhub-sync', {
       connection: getRedisConnection(),
       defaultJobOptions: {
         attempts: 3,
