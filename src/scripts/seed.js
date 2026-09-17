@@ -52,6 +52,36 @@ const COMPANIES = [
       },
     ],
   },
+  {
+    name: 'Freshworks',
+    slug: 'freshworks',
+    website: 'https://www.freshworks.com',
+    careersUrl: 'https://www.freshworks.com/careers',
+    industry: 'SaaS',
+    sources: [
+      {
+        type: 'smartrecruiters',
+        name: 'Freshworks SmartRecruiters board',
+        careersUrl: 'https://careers.smartrecruiters.com/freshworks',
+        config: { company: 'Freshworks', allowEmptyResult: false },
+      },
+    ],
+  },
+  {
+    name: 'Enterpret',
+    slug: 'enterpret',
+    website: 'https://www.enterpret.com',
+    careersUrl: 'https://www.enterpret.com/careers',
+    industry: 'AI SaaS',
+    sources: [
+      {
+        type: 'greenhouse',
+        name: 'Enterpret Greenhouse board',
+        careersUrl: 'https://job-boards.greenhouse.io/enterpret',
+        config: { boardToken: 'enterpret', allowEmptyResult: false },
+      },
+    ],
+  },
 ];
 
 const seed = async () => {

@@ -4,15 +4,15 @@ Express API and data-ingestion foundation for ReerHub, an India-first job discov
 
 ## Current scope
 
-10 companies, 95 pure-tech jobs. The backend provides:
+5 companies, ~70 pure-tech jobs. The backend provides:
 
 - Companies, job sources, jobs, job changes, sync logs (Mongoose models + indexes)
-- Adapters: Greenhouse, Lever, Ashby, Custom with registry keyed by `source.type`
+- Adapters: Greenhouse, Lever, Ashby, SmartRecruiters, Custom with registry keyed by `source.type`
 - Sync pipeline: parser -> normalizer -> 9-track classifier -> identity -> batched bulkWrite -> change detection -> sync logging, with sync safety (failed fetches never close jobs)
 - Deterministic tech taxonomy (`TAXONOMY` data object: 9 tracks, canonical roles, seniority ladder, `taxonomyVersion`); non-tech drops at ingestion, never stored
-- BullMQ `reerhub-sync` queue + worker (`SYNC_CONCURRENCY`), staggered daily crons per source, `POST /job-sources/:id/sync` manual trigger (API key)
+- BullMQ `reerhub-sync` queue + worker (`SYNC_CONCURRENCY`), staggered daily crons per source, `POST /job-sources/:id/sync` manual trigger (API key) + `npm run sync:source <pattern>` inline operator tool
 - API-key write auth (`x-api-key`); reads stay public
-- Idempotent seed for the first 3 companies; companies 4-10 onboarded via API (probe token -> POST rows -> manual sync)
+- Idempotent seed for the 5 base companies (`npm run seed`, `seed:dev`, `seed:prod`); company 6+ onboarded via API (probe token -> POST rows -> manual sync)
 
 ## Adding a company (no code change for Greenhouse/Lever/Ashby)
 

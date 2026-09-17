@@ -241,10 +241,12 @@ const TAXONOMY = [
         role: 'Solutions Engineer',
         patterns: [
           'solutions engineer',
+          'solution engineer',
           'solutions architect',
           'solutions consultant',
           'solution architect',
           'sales engineer',
+          'value engineer',
         ],
       },
       {

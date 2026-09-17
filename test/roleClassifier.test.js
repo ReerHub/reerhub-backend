@@ -74,6 +74,9 @@ test('classifies data, cloud, mobile, security, qa, systems roles', () => {
     ['Network Engineer, DC', 'systems', 'Network Engineer'],
     ['Sales Engineer', 'systems', 'Solutions Engineer'],
     ['Solutions Architect - London, UK', 'systems', 'Solutions Engineer'],
+    ['Lead - Solution Engineer', 'systems', 'Solutions Engineer'],
+    ['Principal - Solution Engineering', 'systems', 'Solutions Engineer'],
+    ['Principal Value Engineer', 'systems', 'Solutions Engineer'],
     ['Implementation Engineer', 'systems', 'Integration Engineer'],
   ];
   for (const [title, track, role] of cases) {
