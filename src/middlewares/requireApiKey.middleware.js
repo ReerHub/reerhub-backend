@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 import ApiError from '../utils/ApiError.js';
 
 /**
@@ -23,10 +25,13 @@ const requireApiKey = (req, _res, next) => {
   }
 
   const provided = req.headers['x-api-key'];
-  if (
-    !provided ||
-    !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
-  ) {
+  const providedBuf = Buffer.from(provided || '');
+  const expectedBuf = Buffer.from(expected);
+  const valid =
+    providedBuf.length === expectedBuf.length &&
+    crypto.timingSafeEqual(providedBuf, expectedBuf);
+
+  if (!valid) {
     return next(new ApiError(401, 'A valid API key is required'));
   }
   return next();

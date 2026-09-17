@@ -1,9 +1,9 @@
-import { createClient } from 'redis';
+import Redis from 'ioredis';
 
 let redisClient;
 
 export const connectRedis = async () => {
-  if (redisClient?.isOpen) return redisClient;
+  if (redisClient?.status === 'ready') return redisClient;
 
   const redisUrl = process.env.REDIS_URL;
 
@@ -11,13 +11,15 @@ export const connectRedis = async () => {
     throw new Error('REDIS_URL is not defined');
   }
 
-  redisClient = createClient({ url: redisUrl });
+  redisClient = new Redis(redisUrl, {
+    maxRetriesPerRequest: 1,
+  });
 
   redisClient.on('error', (error) => {
     console.error('❌ Redis client error:', error);
   });
 
-  await redisClient.connect();
+  await redisClient.ping();
   console.log('✅ Redis connected');
 
   return redisClient;
@@ -31,7 +33,8 @@ export const getRedisClient = () => {
 };
 
 export const disconnectRedis = async () => {
-  if (redisClient?.isOpen) {
-    await redisClient.quit();
+  if (redisClient) {
+    await redisClient.quit().catch(() => {});
+    redisClient = null;
   }
 };
