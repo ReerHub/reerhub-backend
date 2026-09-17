@@ -9,6 +9,8 @@ const syncStatsSchema = new mongoose.Schema(
     unchangedJobs: { type: Number, default: 0 },
     closedJobs: { type: Number, default: 0 },
     duplicates: { type: Number, default: 0 },
+    nonTechSkipped: { type: Number, default: 0 },
+    nonIndiaFiltered: { type: Number, default: 0 },
   },
   { _id: false }
 );

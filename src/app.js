@@ -47,12 +47,12 @@ app.use(morgan('dev'));
 app.get('/api/v1/health', (_req, res) => {
   res.status(200).json({
     success: true,
-    service: 'crhub-backend',
+    service: 'wareers-backend',
     status: 'ok',
   });
 });
 
-// 6. CAREERHUB ROUTES
+// 6. WAREERS ROUTES
 app.use('/api/v1/companies', companyRoutes);
 app.use('/api/v1/job-sources', jobSourceRoutes);
 app.use('/api/v1/jobs', jobRoutes);

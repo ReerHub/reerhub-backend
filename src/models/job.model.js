@@ -58,7 +58,24 @@ const jobSchema = new mongoose.Schema(
     experience: experienceSchema,
     salary: salarySchema,
     skills: { type: [String], default: [] },
-    jobCategory: { type: String, trim: true },
+    techTrack: {
+      type: String,
+      enum: [
+        'software',
+        'ai-ml',
+        'data',
+        'cloud-infra',
+        'mobile',
+        'security',
+        'qa',
+        'systems',
+        'eng-management',
+      ],
+      index: true,
+    },
+    techRole: { type: String, trim: true, index: true },
+    taxonomyVersion: { type: Number, default: 2 },
+    isIndiaRole: { type: Boolean, default: true, index: true },
     seniority: { type: String, trim: true },
     applicationUrl: { type: String, required: true, trim: true },
     sourceUrl: { type: String, required: true, trim: true },
@@ -87,8 +104,20 @@ jobSchema.index(
   }
 );
 jobSchema.index({ companyId: 1, status: 1 });
+jobSchema.index({ companyId: 1, status: 1, techTrack: 1 });
+jobSchema.index({ status: 1, techTrack: 1, postedAt: -1 });
+jobSchema.index({ status: 1, techRole: 1, postedAt: -1 });
+jobSchema.index({ status: 1, isIndiaRole: 1, postedAt: -1 });
 jobSchema.index({ 'locations.city': 1, status: 1 });
 jobSchema.index({ postedAt: -1 });
+// Text index for keyword search across title/department/skills.
+// Why text index over regex $or: indexed + ranked, scales to 100k+ jobs.
+jobSchema.index({
+  title: 'text',
+  normalizedTitle: 'text',
+  department: 'text',
+  skills: 'text',
+});
 
 const Job = mongoose.model('Job', jobSchema);
 

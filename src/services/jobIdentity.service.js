@@ -39,7 +39,9 @@ export const createContentHash = (job) =>
       experience: job.experience || {},
       salary: job.salary || {},
       skills: (job.skills || []).map(cleanText).sort(),
-      jobCategory: cleanText(job.jobCategory),
+      techTrack: cleanText(job.techTrack),
+      techRole: cleanText(job.techRole),
+      isIndiaRole: job.isIndiaRole !== false,
       seniority: cleanText(job.seniority),
       applicationUrl: cleanText(job.applicationUrl),
     })

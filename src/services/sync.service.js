@@ -1,9 +1,17 @@
+import mongoose from 'mongoose';
+
 import Job from '../models/job.model.js';
 import JobChange from '../models/jobChange.model.js';
 import JobSource from '../models/jobSource.model.js';
 import SyncLog from '../models/syncLog.model.js';
 import { createContentHash, createJobFingerprint } from './jobIdentity.service.js';
 import { normalizeRawJob } from './jobNormalizer.service.js';
+import {
+  classifyRole,
+  extractSkills,
+  isIndiaRole,
+  TAXONOMY_VERSION,
+} from './roleClassifier.service.js';
 
 const trackedFields = [
   'title',
@@ -16,7 +24,9 @@ const trackedFields = [
   'experience',
   'salary',
   'skills',
-  'jobCategory',
+  'techTrack',
+  'techRole',
+  'taxonomyVersion',
   'seniority',
   'applicationUrl',
   'sourceUrl',
@@ -48,6 +58,8 @@ const createStats = () => ({
   unchangedJobs: 0,
   closedJobs: 0,
   duplicates: 0,
+  nonTechSkipped: 0,
+  nonIndiaFiltered: 0,
 });
 
 /**
@@ -78,11 +90,40 @@ export const syncJobSource = async ({ source, fetchJobs }) => {
     stats.fetched = rawJobs.length;
     const seenIdentities = new Set();
 
+    // Phase 1: normalize + classify (CPU only). Per-job error isolation
+    // is preserved: one bad posting never poisons the batch.
+    const prepared = [];
+    let errorOverflow = 0;
+    const pushJobError = (message) => {
+      if (errors.length < 50) errors.push(message);
+      else errorOverflow += 1;
+    };
+
     for (const rawJob of rawJobs) {
       try {
         const job = normalizeRawJob(rawJob);
         job.companyId = source.companyId;
         job.sourceId = source._id;
+        // Pure tech platform: non-tech titles are dropped here, before
+        // fingerprinting or storage. A tech job edited into non-tech
+        // closes naturally next run (its lastSeenAt goes stale).
+        const { techTrack, techRole, seniority } = classifyRole({
+          title: job.title,
+          department: job.department,
+        });
+        if (!techTrack) {
+          stats.nonTechSkipped += 1;
+          continue;
+        }
+        job.techTrack = techTrack;
+        job.techRole = techRole;
+        if (seniority) job.seniority = seniority;
+        job.taxonomyVersion = TAXONOMY_VERSION;
+        job.isIndiaRole = isIndiaRole(job.locations);
+        if (job.skills.length === 0) {
+          job.skills = extractSkills(`${job.title} ${job.description}`);
+        }
+        if (!job.isIndiaRole) stats.nonIndiaFiltered += 1;
         job.jobFingerprint = createJobFingerprint(job);
         job.contentHash = createContentHash(job);
 
@@ -94,57 +135,91 @@ export const syncJobSource = async ({ source, fetchJobs }) => {
           continue;
         }
         seenIdentities.add(identity);
-
-        stats.parsed += 1;
-        const lookup = job.externalJobId
-          ? { sourceId: source._id, externalJobId: job.externalJobId }
-          : { sourceId: source._id, jobFingerprint: job.jobFingerprint };
-        const existing = await Job.findOne(lookup);
-        const lastSeenAt = new Date();
-
-        if (!existing) {
-          const created = await Job.create({
-            ...job,
-            firstSeenAt: lastSeenAt,
-            lastSeenAt,
-            status: 'active',
-          });
-          await JobChange.create({
-            jobId: created._id,
-            type: 'created',
-            detectedAt: lastSeenAt,
-          });
-          stats.newJobs += 1;
-          continue;
-        }
-
-        const statusChanged = existing.status !== 'active';
-        const contentChanged = existing.contentHash !== job.contentHash;
-        const changes = contentChanged ? detectChanges(existing.toObject(), job) : {};
-
-        Object.assign(existing, job, { lastSeenAt, status: 'active' });
-        await existing.save();
-
-        if (statusChanged) {
-          await JobChange.create({
-            jobId: existing._id,
-            type: 'reopened',
-            detectedAt: lastSeenAt,
-          });
-          stats.updatedJobs += 1;
-        } else if (contentChanged) {
-          await JobChange.create({
-            jobId: existing._id,
-            type: 'updated',
-            changes,
-            detectedAt: lastSeenAt,
-          });
-          stats.updatedJobs += 1;
-        } else {
-          stats.unchangedJobs += 1;
-        }
+        prepared.push(job);
       } catch (error) {
-        errors.push(error.message);
+        pushJobError(error.message);
+      }
+    }
+    stats.parsed = prepared.length;
+    if (errorOverflow > 0) {
+      warnings.push(`${errorOverflow} further job errors truncated from this log.`);
+    }
+
+    // Phase 2: indexed reads to decide insert vs update per job.
+    const jobOps = [];
+    const changeDocs = [];
+    const pendingStats = { newJobs: 0, updatedJobs: 0, unchangedJobs: 0 };
+
+    for (const job of prepared) {
+      const lookup = job.externalJobId
+        ? { sourceId: source._id, externalJobId: job.externalJobId }
+        : { sourceId: source._id, jobFingerprint: job.jobFingerprint };
+      const existing = await Job.findOne(lookup);
+      const lastSeenAt = new Date();
+
+      if (!existing) {
+        const jobId = new mongoose.Types.ObjectId();
+        jobOps.push({
+          insertOne: {
+            document: {
+              ...job,
+              _id: jobId,
+              firstSeenAt: lastSeenAt,
+              lastSeenAt,
+              status: 'active',
+            },
+          },
+        });
+        changeDocs.push({ jobId, type: 'created', detectedAt: lastSeenAt });
+        pendingStats.newJobs += 1;
+        continue;
+      }
+
+      const statusChanged = existing.status !== 'active';
+      const contentChanged = existing.contentHash !== job.contentHash;
+      const changes = contentChanged ? detectChanges(existing.toObject(), job) : {};
+
+      jobOps.push({
+        updateOne: {
+          filter: { _id: existing._id },
+          update: { $set: { ...job, lastSeenAt, status: 'active' } },
+        },
+      });
+
+      if (statusChanged) {
+        changeDocs.push({
+          jobId: existing._id,
+          type: 'reopened',
+          detectedAt: lastSeenAt,
+        });
+        pendingStats.updatedJobs += 1;
+      } else if (contentChanged) {
+        changeDocs.push({
+          jobId: existing._id,
+          type: 'updated',
+          changes,
+          detectedAt: lastSeenAt,
+        });
+        pendingStats.updatedJobs += 1;
+      } else {
+        pendingStats.unchangedJobs += 1;
+      }
+    }
+
+    // Phase 3: batched writes. One bulkWrite + one insertMany replaces
+    // 2-3 round-trips per job. On failure the run is partial (closures
+    // stay skipped via errors.length > 0) and the next sync converges.
+    if (jobOps.length > 0) {
+      try {
+        await Job.bulkWrite(jobOps, { ordered: false });
+        if (changeDocs.length > 0) {
+          await JobChange.insertMany(changeDocs, { ordered: false });
+        }
+        stats.newJobs += pendingStats.newJobs;
+        stats.updatedJobs += pendingStats.updatedJobs;
+        stats.unchangedJobs += pendingStats.unchangedJobs;
+      } catch (error) {
+        pushJobError(`Bulk write failed: ${String(error.message).slice(0, 300)}`);
       }
     }
 

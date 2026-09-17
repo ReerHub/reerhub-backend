@@ -80,7 +80,6 @@ export const normalizeRawJob = (rawJob) => {
     experience: normalizeExperience(rawJob.experience),
     salary: normalizeSalary(rawJob.salary),
     skills: normalizeSkills(rawJob.skills),
-    jobCategory: toTrimmedString(rawJob.jobCategory) || undefined,
     seniority: toTrimmedString(rawJob.seniority) || undefined,
     applicationUrl,
     sourceUrl,
