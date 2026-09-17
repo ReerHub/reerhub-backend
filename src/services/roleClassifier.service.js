@@ -10,6 +10,8 @@
  * on each job lets future classifier upgrades re-tag stale versions only.
  */
 
+import escapeRegex from '../utils/escapeRegex.js';
+
 export const TAXONOMY_VERSION = 2;
 
 export const TECH_TRACKS = [
@@ -474,8 +476,6 @@ const SKILL_DICTIONARY = [
   'sql',
   'nosql',
 ];
-
-const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const includesToken = (haystack, token) => {
   if (!token) return false;

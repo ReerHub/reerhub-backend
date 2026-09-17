@@ -25,7 +25,7 @@ export const fetchAshbyJobs = async (source) => {
     rawTitle: job.title,
     description: job.descriptionHtml || job.description || '',
     locations: job.locationName || job.location?.name || '',
-    remoteType: job.isRemote ? 'remote' : undefined,
+    remoteType: job.isRemote ? 'remote' : 'onsite',
     employmentType: job.employmentType || undefined,
     department: job.departmentName || undefined,
     applicationUrl: job.jobUrl,

@@ -12,7 +12,7 @@ const headquartersSchema = new mongoose.Schema(
 const companySchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, unique: true },
-    slug: { type: String, required: true, trim: true, lowercase: true },
+    slug: { type: String, required: true, trim: true, lowercase: true, unique: true },
     website: { type: String, required: true, trim: true },
     careersUrl: { type: String, required: true, trim: true },
     logoUrl: { type: String, trim: true },
@@ -24,8 +24,6 @@ const companySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-companySchema.index({ slug: 1 }, { unique: true });
 
 const Company = mongoose.model('Company', companySchema);
 

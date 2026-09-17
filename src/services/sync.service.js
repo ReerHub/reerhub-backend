@@ -145,16 +145,43 @@ export const syncJobSource = async ({ source, fetchJobs }) => {
       warnings.push(`${errorOverflow} further job errors truncated from this log.`);
     }
 
-    // Phase 2: indexed reads to decide insert vs update per job.
+    // Phase 2: batch lookup existing jobs to decide insert vs update.
+    // Single indexed query replaces N sequential findOne calls.
     const jobOps = [];
     const changeDocs = [];
     const pendingStats = { newJobs: 0, updatedJobs: 0, unchangedJobs: 0 };
 
+    const externalIds = prepared
+      .filter((j) => j.externalJobId)
+      .map((j) => j.externalJobId);
+    const fingerprints = prepared
+      .filter((j) => !j.externalJobId)
+      .map((j) => j.jobFingerprint);
+
+    const orFilters = [];
+    if (externalIds.length > 0) orFilters.push({ externalJobId: { $in: externalIds } });
+    if (fingerprints.length > 0)
+      orFilters.push({ jobFingerprint: { $in: fingerprints } });
+
+    const existingJobs =
+      orFilters.length > 0
+        ? await Job.find({ sourceId: source._id, $or: orFilters })
+            .select('externalJobId jobFingerprint contentHash status')
+            .lean()
+        : [];
+
+    // Build lookup maps keyed by externalJobId and fingerprint.
+    const byExternalId = new Map();
+    const byFingerprint = new Map();
+    for (const j of existingJobs) {
+      if (j.externalJobId) byExternalId.set(j.externalJobId, j);
+      if (j.jobFingerprint) byFingerprint.set(j.jobFingerprint, j);
+    }
+
     for (const job of prepared) {
-      const lookup = job.externalJobId
-        ? { sourceId: source._id, externalJobId: job.externalJobId }
-        : { sourceId: source._id, jobFingerprint: job.jobFingerprint };
-      const existing = await Job.findOne(lookup);
+      const existing = job.externalJobId
+        ? byExternalId.get(job.externalJobId)
+        : byFingerprint.get(job.jobFingerprint);
       const lastSeenAt = new Date();
 
       if (!existing) {

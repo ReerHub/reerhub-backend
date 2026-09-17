@@ -3,9 +3,8 @@ import mongoose from 'mongoose';
 import Job from '../models/job.model.js';
 import { TECH_TRACKS } from '../services/roleClassifier.service.js';
 import ApiError from '../utils/ApiError.js';
+import escapeRegex from '../utils/escapeRegex.js';
 import TryCatch from '../middlewares/async.middleware.js';
-
-const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Indian cities with dual names (ATS boards use either spelling).
 // Why: exact-match filters silently drop half the jobs otherwise.

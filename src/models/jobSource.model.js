@@ -11,7 +11,7 @@ const jobSourceSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ['greenhouse', 'ashby', 'lever', 'custom'],
+      enum: ['greenhouse', 'ashby', 'lever', 'smartrecruiters', 'custom'],
     },
     name: { type: String, required: true, trim: true },
     careersUrl: { type: String, required: true, trim: true },

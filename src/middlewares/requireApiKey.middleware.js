@@ -22,8 +22,11 @@ const requireApiKey = (req, _res, next) => {
     return next();
   }
 
-  const provided = req.headers['x-api-key'] || req.query.apiKey;
-  if (provided !== expected) {
+  const provided = req.headers['x-api-key'];
+  if (
+    !provided ||
+    !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
+  ) {
     return next(new ApiError(401, 'A valid API key is required'));
   }
   return next();

@@ -31,14 +31,20 @@ const PORT = process.env.PORT || 8000;
     const shutdown = (signal) => {
       console.log(`📴 ${signal} received, closing server gracefully...`);
       server.close(() => {
-        Promise.all([
-          stopSyncWorker(),
-          closeSyncQueue(),
-          disconnectRedis(),
-          disconnectDB(),
-        ])
-          .catch((error) => console.error('❌ Shutdown error:', error))
-          .finally(() => process.exit(0));
+        (async () => {
+          // Ordered teardown: stop consuming worker first, then queue, then
+          // Redis, then the DB (each layer depends on the one below it).
+          try {
+            await stopSyncWorker();
+            await closeSyncQueue();
+            await disconnectRedis();
+            await disconnectDB();
+          } catch (error) {
+            console.error('❌ Shutdown error:', error);
+          }
+          // Force-exit guard in case a keep-alive connection blocks close().
+          setTimeout(() => process.exit(0), 1500).unref();
+        })();
       });
     };
 
