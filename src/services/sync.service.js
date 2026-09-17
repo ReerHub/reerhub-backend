@@ -166,7 +166,19 @@ export const syncJobSource = async ({ source, fetchJobs }) => {
     const existingJobs =
       orFilters.length > 0
         ? await Job.find({ sourceId: source._id, $or: orFilters })
-            .select('externalJobId jobFingerprint contentHash status')
+            // Lean docs = plain objects. Detect changes by preloading the
+            // tracked fields (omitting identity fields would make every
+            // existing job look "changed" and spam JobChange documents).
+            .select(
+              [
+                '_id',
+                'externalJobId',
+                'jobFingerprint',
+                'contentHash',
+                'status',
+                ...trackedFields,
+              ].join(' ')
+            )
             .lean()
         : [];
 
@@ -204,7 +216,7 @@ export const syncJobSource = async ({ source, fetchJobs }) => {
 
       const statusChanged = existing.status !== 'active';
       const contentChanged = existing.contentHash !== job.contentHash;
-      const changes = contentChanged ? detectChanges(existing.toObject(), job) : {};
+      const changes = contentChanged ? detectChanges(existing, job) : {};
 
       jobOps.push({
         updateOne: {

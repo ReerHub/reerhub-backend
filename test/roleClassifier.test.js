@@ -196,3 +196,36 @@ test('extracts skills without false hits', () => {
   assert.ok(skills.includes('aws'));
   assert.ok(!skills.includes('golang'), 'go inside "go-getter" must not match');
 });
+
+test('extracts modern AI/ML and security skills from ATS descriptions', () => {
+  const skills = extractSkills(
+    'Build GenAI and LLM apps: machine learning, prompt engineering, ' +
+      'vector databases, RAG pipelines. Harden with DevSecOps, Red Teaming, ' +
+      'zero trust and IAM. Chain:: "production ML streaming triggers alert"'
+  );
+  assert.ok(skills.includes('genai'), 'genai missing');
+  assert.ok(skills.includes('llm'), 'llm missing');
+  assert.ok(skills.includes('machine learning'), 'machine learning missing');
+  assert.ok(skills.includes('prompt engineering'), 'prompt engineering missing');
+  assert.ok(skills.includes('vector database'), 'vector database missing');
+  assert.ok(skills.includes('rag'), 'rag (word-bounded) missing');
+  assert.ok(skills.includes('devsecops'), 'devsecops missing');
+  assert.ok(skills.includes('red teaming'), 'red teaming missing');
+  assert.ok(skills.includes('zero trust'), 'zero trust missing');
+  assert.ok(skills.includes('iam'), 'iam (word-bounded) missing');
+  assert.ok(
+    skills.includes('ml'),
+    'short-token "ml" must match standalone (was "ML streaming")'
+  );
+  assert.ok(!skills.includes('streaming'), 'unlisted word must not appear');
+});
+
+test('short AI tokens respect word boundaries', () => {
+  const skills = extractSkills(
+    'Said the mainframe yamls and KML maps; chain the manifesto rails.'
+  );
+  // "ai" inside "mainframe"/"rails" and "ml" inside "yamls"/"kml" are
+  // substring hits, not standalone AI/ML tokens — must NOT match.
+  assert.ok(!skills.includes('ai'), '"ai" must not match inside mainframe');
+  assert.ok(!skills.includes('ml'), '"ml" must not match inside yamls/kml');
+});
