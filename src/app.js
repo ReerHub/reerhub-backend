@@ -52,6 +52,16 @@ app.get('/api/v1/health', (_req, res) => {
   });
 });
 
+// Root probe for platform health checks (Render defaults to HEAD /).
+// Keeps default probes green without changing the API contract.
+app.get('/', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    service: 'reerhub-backend',
+    status: 'ok',
+  });
+});
+
 // 6. REERHUB ROUTES
 app.use('/api/v1/companies', companyRoutes);
 app.use('/api/v1/job-sources', jobSourceRoutes);
