@@ -1,4 +1,4 @@
-# ReerHub Backend
+# reerhub-backend
 
 Express API and data-ingestion foundation for ReerHub, an India-first job discovery engine for engineering and AI roles that indexes official company career pages and ATS sources.
 
