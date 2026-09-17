@@ -43,4 +43,12 @@ const securityMiddlewares = (app) => {
   });
 };
 
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many auth attempts, try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 export default securityMiddlewares;

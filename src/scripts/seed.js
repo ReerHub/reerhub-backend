@@ -13,6 +13,7 @@ const COMPANIES = [
     website: 'https://razorpay.com',
     careersUrl: 'https://razorpay.com/jobs/',
     industry: 'Fintech',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=razorpay.com&sz=128',
     sources: [
       {
         type: 'greenhouse',
@@ -28,6 +29,7 @@ const COMPANIES = [
     website: 'https://cred.club',
     careersUrl: 'https://cred.club/careers',
     industry: 'Fintech',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=cred.club&sz=128',
     sources: [
       {
         type: 'lever',
@@ -43,6 +45,7 @@ const COMPANIES = [
     website: 'https://www.meesho.com',
     careersUrl: 'https://www.meesho.com/careers',
     industry: 'E-commerce',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=meesho.com&sz=128',
     sources: [
       {
         type: 'lever',
@@ -58,6 +61,7 @@ const COMPANIES = [
     website: 'https://www.freshworks.com',
     careersUrl: 'https://www.freshworks.com/careers',
     industry: 'SaaS',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=freshworks.com&sz=128',
     sources: [
       {
         type: 'smartrecruiters',
@@ -73,6 +77,7 @@ const COMPANIES = [
     website: 'https://www.enterpret.com',
     careersUrl: 'https://www.enterpret.com/careers',
     industry: 'AI SaaS',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=enterpret.com&sz=128',
     sources: [
       {
         type: 'greenhouse',
@@ -96,6 +101,7 @@ const seed = async () => {
           website: entry.website,
           careersUrl: entry.careersUrl,
           industry: entry.industry,
+          logoUrl: entry.logoUrl,
           country: 'India',
           isActive: true,
         },

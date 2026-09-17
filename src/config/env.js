@@ -12,6 +12,23 @@ if (process.env.NODE_ENV === 'production') {
   if (!process.env.API_KEY) {
     throw new Error('API_KEY must be set in production (write endpoints).');
   }
+  const authRequired = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'];
+  const missingAuth = authRequired.filter((key) => !process.env[key]);
+  if (missingAuth.length > 0) {
+    throw new Error(
+      `Missing required auth env vars in production: ${missingAuth.join(', ')}`
+    );
+  }
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    throw new Error('GOOGLE_CLIENT_ID must be set in production (Google login).');
+  }
+  const smtpRequired = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'];
+  const missingSmtp = smtpRequired.filter((key) => !process.env[key]);
+  if (missingSmtp.length > 0) {
+    throw new Error(
+      `Missing required SMTP env vars in production: ${missingSmtp.join(', ')}`
+    );
+  }
   const dbName = (process.env.MONGO_DB_NAME || '').toLowerCase();
   if (
     !dbName ||
