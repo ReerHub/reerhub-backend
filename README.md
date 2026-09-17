@@ -43,7 +43,7 @@ npm run dev
 - Render env (service → Environment): `NODE_ENV=production`, `MONGO_URI`, `MONGO_DB_NAME=reerhub-prod`, `REDIS_URL`, `API_KEY`, `CORS_FRONTEND_URL=https://www.reerhub.com,https://reerhub.com`, `WORKER_ENABLED=true`, `SYNC_CONCURRENCY=5`, `ADAPTER_FETCH_TIMEOUT_MS=30000`. Do **not** set `PORT` — Render injects it and `server.js` reads `process.env.PORT`.
 - `env.js` fails fast in production when `MONGO_URI`/`REDIS_URL`/`API_KEY` are missing or `MONGO_DB_NAME` looks like dev/test/localhost.
 - CI (`.github/workflows/ci.yml`): lint + tests (Mongo service). Deploys are handled by Render, not GitHub Actions.
-- Free-tier caveat: Render free instances sleep, so the daily BullMQ scheduler will not fire on time — upgrade to a paid instance (or add an external scheduler) for reliable daily syncs.
+- Free-tier caveat: Render free instances sleep, so the in-app BullMQ scheduler is unreliable. `.github/workflows/sync.yml` triggers syncs daily through the API instead — add repository secret `API_KEY`. A paid instance removes the need for the workflow.
 - `CORS_FRONTEND_URL` is the list of allowed browser origins; add the frontend origin there to connect. Full guide: workspace `docs/DEPLOYMENT.md`.
 
 ## Environment
