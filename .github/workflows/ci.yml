@@ -1,0 +1,32 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+        env:
+          MONGO_URI: mongodb://127.0.0.1:27017
+          MONGO_DB_NAME: reerhub-test
+
+# Production is deployed directly from GitHub by Render (auto-deploy on push to
+# main) — no deploy hook or staging environment here. Verify production with:
+#   SMOKE_API_BASE=https://api.reerhub.com/api/v1 node src/scripts/smoke.js

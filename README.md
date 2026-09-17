@@ -36,12 +36,15 @@ cp .env.example .env
 npm run dev
 ```
 
-## Staging deploy (Render)
+## Production deploy (Render)
 
-- Blueprint in `render.yaml`: web service `reerhub-backend-staging`, Node runtime, `npm ci && lint && test`, `node src/server.js`, health `/api/v1/health`. Secrets (`sync: false`) are set in the Render dashboard: `MONGO_URI`, `REDIS_URL`, `API_KEY`.
-- `MONGO_DB_NAME=reerhub-staging` (env.js allows it; prod guard rejects dev/test/localhost).
-- CI (`.github/workflows/deploy.yml`): lint + tests (Mongo service) → Render deploy hook (`RENDER_DEPLOY_HOOK` secret) → smoke gate at `https://api.staging.reerhub.com/api/v1`.
-- Full walkthrough incl. Atlas/Upstash/DNS: `docs/DEPLOY_STAGING.md`.
+- Render runs this service directly from `main` (auto-deploy on push) at **`https://api.reerhub.com`** — no staging environment.
+- Build `npm ci && npm run lint && npm test`; start `node src/server.js`; health `GET /api/v1/health`.
+- Render env (service → Environment): `NODE_ENV=production`, `MONGO_URI`, `MONGO_DB_NAME=reerhub-prod`, `REDIS_URL`, `API_KEY`, `CORS_FRONTEND_URL=https://www.reerhub.com,https://reerhub.com`, `WORKER_ENABLED=true`, `SYNC_CONCURRENCY=5`, `ADAPTER_FETCH_TIMEOUT_MS=30000`. Do **not** set `PORT` — Render injects it and `server.js` reads `process.env.PORT`.
+- `env.js` fails fast in production when `MONGO_URI`/`REDIS_URL`/`API_KEY` are missing or `MONGO_DB_NAME` looks like dev/test/localhost.
+- CI (`.github/workflows/ci.yml`): lint + tests (Mongo service). Deploys are handled by Render, not GitHub Actions.
+- Free-tier caveat: Render free instances sleep, so the daily BullMQ scheduler will not fire on time — upgrade to a paid instance (or add an external scheduler) for reliable daily syncs.
+- `CORS_FRONTEND_URL` is the list of allowed browser origins; add the frontend origin there to connect. Full guide: workspace `docs/DEPLOYMENT.md`.
 
 ## Environment
 
@@ -52,6 +55,7 @@ MONGO_DB_NAME=reerhub-dev
 # Production: use a DIFFERENT database, e.g. MONGO_DB_NAME=reerhub-prod
 # with your Atlas MONGO_URI. Never point prod at reerhub-dev.
 REDIS_URL=redis://localhost:6379
+# Production CORS: https://www.reerhub.com,https://reerhub.com
 CORS_FRONTEND_URL=http://localhost:3000
 SYNC_CONCURRENCY=5
 ADAPTER_FETCH_TIMEOUT_MS=30000
