@@ -36,6 +36,13 @@ cp .env.example .env
 npm run dev
 ```
 
+## Staging deploy (Render)
+
+- Blueprint in `render.yaml`: web service `reerhub-backend-staging`, Node runtime, `npm ci && lint && test`, `node src/server.js`, health `/api/v1/health`. Secrets (`sync: false`) are set in the Render dashboard: `MONGO_URI`, `REDIS_URL`, `API_KEY`.
+- `MONGO_DB_NAME=reerhub-staging` (env.js allows it; prod guard rejects dev/test/localhost).
+- CI (`.github/workflows/deploy.yml`): lint + tests (Mongo service) → Render deploy hook (`RENDER_DEPLOY_HOOK` secret) → smoke gate at `https://api.staging.reerhub.com/api/v1`.
+- Full walkthrough incl. Atlas/Upstash/DNS: `docs/DEPLOY_STAGING.md`.
+
 ## Environment
 
 ```dotenv
