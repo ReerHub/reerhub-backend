@@ -240,6 +240,9 @@ export const csrf = TryCatch(async (req, res) => {
     secure: prod,
     sameSite: prod ? 'none' : 'lax',
     path: '/',
+    // Shared domain in prod so the frontend can read it directly from
+    // document.cookie (session cookies stay httpOnly regardless).
+    ...(prod ? { domain: '.reerhub.com' } : {}),
     maxAge: 24 * 60 * 60 * 1000,
   });
   res.status(200).json({ success: true, data: { csrfToken: token } });
