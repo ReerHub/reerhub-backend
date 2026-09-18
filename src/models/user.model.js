@@ -52,6 +52,8 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     emailVerified: { type: Boolean, default: false },
     emailVerifiedAt: { type: Date },
+    failedLoginAttempts: { type: Number, default: 0 },
+    lockUntil: { type: Date },
     profile: { type: profileSchema, default: {} },
   },
   { timestamps: true }

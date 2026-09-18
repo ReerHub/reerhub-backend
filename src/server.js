@@ -50,6 +50,17 @@ const PORT = process.env.PORT || 8000;
 
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
+
+    // Crash loudly on programmer errors so the host (Render) restarts
+    // cleanly instead of limping on with corrupted state.
+    process.on('unhandledRejection', (reason) => {
+      console.error('❌ Unhandled rejection, exiting:', reason);
+      process.exit(1);
+    });
+    process.on('uncaughtException', (error) => {
+      console.error('❌ Uncaught exception, exiting:', error);
+      process.exit(1);
+    });
   } catch (err) {
     console.error('❌ Server failed to start:', err);
     process.exit(1);

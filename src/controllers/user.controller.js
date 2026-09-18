@@ -2,6 +2,15 @@ import mongoose from 'mongoose';
 
 import TryCatch from '../middlewares/async.middleware.js';
 import ApiError from '../utils/ApiError.js';
+import { comparePassword, hashPassword } from '../utils/password.js';
+import {
+  authCookies,
+  clearAuthCookies,
+  revokeRefreshToken,
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} from '../services/token.service.js';
 import User from '../models/user.model.js';
 import Job from '../models/job.model.js';
 import SavedJob from '../models/savedJob.model.js';
@@ -113,4 +122,63 @@ export const listSavedJobs = TryCatch(async (req, res) => {
       .map((row) => ({ ...row.jobId, savedAt: row.createdAt })),
     meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
   });
+});
+
+export const changePassword = TryCatch(async (req, res) => {
+  const { currentPassword, newPassword } = req.validated;
+  const user = await User.findById(req.user._id).select('+passwordHash');
+  if (!user?.passwordHash) {
+    throw new ApiError(400, 'Password login is not enabled for this account');
+  }
+  const valid = await comparePassword(currentPassword, user.passwordHash);
+  if (!valid) throw new ApiError(401, 'Current password is incorrect');
+
+  await User.updateOne(
+    { _id: user._id },
+    { passwordHash: await hashPassword(newPassword) }
+  );
+  // Rotate the session so a compromised refresh token dies with the change.
+  const presented = req.cookies?.refreshToken;
+  if (presented) {
+    try {
+      const payload = await verifyRefreshToken(presented);
+      await revokeRefreshToken(payload.jti);
+    } catch {
+      // Continue — new session is issued below regardless.
+    }
+  }
+  const accessToken = signAccessToken(user._id);
+  const { token: refreshToken } = await signRefreshToken(user._id);
+  authCookies(res, { accessToken, refreshToken });
+  res.status(200).json({ success: true, data: { changed: true } });
+});
+
+export const exportData = TryCatch(async (req, res) => {
+  const [user, saved] = await Promise.all([
+    User.findById(req.user._id).select('-passwordHash').lean(),
+    SavedJob.find({ userId: req.user._id })
+      .sort({ createdAt: -1 })
+      .populate({
+        path: 'jobId',
+        select: 'title companyId techTrack techRole applicationUrl status',
+        populate: { path: 'companyId', select: 'name slug' },
+      })
+      .lean(),
+  ]);
+  res.status(200).json({
+    success: true,
+    data: {
+      user,
+      savedJobs: saved.filter((row) => row.jobId),
+      counts: { savedJobs: saved.length },
+      exportedAt: new Date().toISOString(),
+    },
+  });
+});
+
+export const deleteAccount = TryCatch(async (req, res) => {
+  await SavedJob.deleteMany({ userId: req.user._id });
+  await User.deleteOne({ _id: req.user._id });
+  clearAuthCookies(res);
+  res.status(200).json({ success: true, data: { deleted: true } });
 });

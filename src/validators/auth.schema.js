@@ -43,6 +43,11 @@ export const resetPasswordSchema = z.object({
   password,
 });
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: password,
+});
+
 const skillsList = z.array(z.string().trim().min(1).max(60)).max(10).optional();
 
 export const updateMeSchema = z

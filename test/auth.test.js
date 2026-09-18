@@ -29,6 +29,9 @@ const cookiesFrom = (res) => {
 
 const json = (res) => res.json().catch(() => ({}));
 
+// Cookie jar client: tracks Set-Cookie (session + csrf) and echoes the
+// CSRF token header on mutations, like lib/auth.ts does in the frontend.
+
 test('auth validators accept and reject', () => {
   assert.ok(
     registerSchema.safeParse({
@@ -72,10 +75,37 @@ test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
   const server = await startServer();
   const base = `http://127.0.0.1:${server.address().port}`;
   const email = `auth-${Date.now()}@example.com`;
+  const jar = {};
+  const store = (res) => {
+    for (const c of res.headers.getSetCookie?.() ?? []) {
+      const kv = c.split(';')[0];
+      const i = kv.indexOf('=');
+      jar[kv.slice(0, i).trim()] = kv.slice(i + 1);
+    }
+  };
+  const api = async (url, opts = {}) => {
+    const method = (opts.method || 'GET').toUpperCase();
+    if (method !== 'GET' && !jar.csrfToken) {
+      store(await fetch(`${base}/api/v1/auth/csrf`));
+    }
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    const ck = Object.entries(jar)
+      .map(([k, v]) => `${k}=${v}`)
+      .join('; ');
+    if (ck) headers.Cookie = [headers.Cookie, ck].filter(Boolean).join('; ');
+    if (method !== 'GET' && jar.csrfToken) headers['x-csrf-token'] = jar.csrfToken;
+    const res = await fetch(url, { ...opts, headers });
+    store(res);
+    return res;
+  };
 
   try {
+    // Unauthenticated /me is rejected (no cookies yet).
+    let res = await api(`${base}/api/v1/users/me`);
+    assert.equal(res.status, 401);
+
     // Signup creates session cookies.
-    let res = await fetch(`${base}/api/v1/auth/signup`, {
+    res = await api(`${base}/api/v1/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -91,23 +121,19 @@ test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
     assert.equal(created.data.emailVerified, false);
 
     // Duplicate signup conflicts.
-    res = await fetch(`${base}/api/v1/auth/signup`, {
+    res = await api(`${base}/api/v1/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Dup', email, password: 'password123' }),
     });
     assert.equal(res.status, 409);
 
-    // Unauthenticated /me is rejected.
-    res = await fetch(`${base}/api/v1/users/me`);
-    assert.equal(res.status, 401);
-
     // Authenticated /me works and exposes profile defaults.
-    res = await fetch(`${base}/api/v1/users/me`, { headers: { Cookie: cookies } });
+    res = await api(`${base}/api/v1/users/me`, { headers: { Cookie: cookies } });
     assert.equal(res.status, 200);
 
     // Patch profile with role/track/skills.
-    res = await fetch(`${base}/api/v1/users/me`, {
+    res = await api(`${base}/api/v1/users/me`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Cookie: cookies },
       body: JSON.stringify({
@@ -125,7 +151,7 @@ test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
     assert.equal(patched.data.profile.techTrack, 'software');
 
     // Wrong password rejected with generic message.
-    res = await fetch(`${base}/api/v1/auth/login`, {
+    res = await api(`${base}/api/v1/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: 'wrongpassword1' }),
@@ -133,7 +159,7 @@ test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
     assert.equal(res.status, 401);
 
     // Login re-issues cookies.
-    res = await fetch(`${base}/api/v1/auth/login`, {
+    res = await api(`${base}/api/v1/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: 'password123' }),
@@ -143,13 +169,13 @@ test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
     assert.ok(cookies.includes('refreshToken'));
 
     // Google without idToken is a validation error; invalid token is 401.
-    res = await fetch(`${base}/api/v1/auth/google`, {
+    res = await api(`${base}/api/v1/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
     assert.equal(res.status, 400);
-    res = await fetch(`${base}/api/v1/auth/google`, {
+    res = await api(`${base}/api/v1/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken: 'invalid' }),
@@ -157,25 +183,25 @@ test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
     assert.equal(res.status, 401);
 
     // Verify/reset with bogus tokens fail safely; forgot is always 200.
-    res = await fetch(`${base}/api/v1/auth/verify-email`, {
+    res = await api(`${base}/api/v1/auth/verify-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: 'bogus' }),
     });
     assert.equal(res.status, 400);
-    res = await fetch(`${base}/api/v1/auth/forgot-password`, {
+    res = await api(`${base}/api/v1/auth/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     });
     assert.equal(res.status, 200);
-    res = await fetch(`${base}/api/v1/auth/forgot-password`, {
+    res = await api(`${base}/api/v1/auth/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: 'nobody@example.com' }),
     });
     assert.equal(res.status, 200);
-    res = await fetch(`${base}/api/v1/auth/reset-password`, {
+    res = await api(`${base}/api/v1/auth/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: 'bogus', password: 'newpassword1' }),
@@ -209,46 +235,46 @@ test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
       contentHash: 'auth-test',
     });
 
-    res = await fetch(`${base}/api/v1/users/me/saved/${job._id}`, {
+    res = await api(`${base}/api/v1/users/me/saved/${job._id}`, {
       method: 'POST',
       headers: { Cookie: cookies },
     });
     assert.equal(res.status, 200);
     // Idempotent second save.
-    res = await fetch(`${base}/api/v1/users/me/saved/${job._id}`, {
+    res = await api(`${base}/api/v1/users/me/saved/${job._id}`, {
       method: 'POST',
       headers: { Cookie: cookies },
     });
     assert.equal(res.status, 200);
 
-    res = await fetch(`${base}/api/v1/users/me/saved/ids`, {
+    res = await api(`${base}/api/v1/users/me/saved/ids`, {
       headers: { Cookie: cookies },
     });
     assert.equal(res.status, 200);
     const ids = await json(res);
     assert.ok(ids.data.includes(String(job._id)));
 
-    res = await fetch(`${base}/api/v1/users/me/saved?page=1&limit=10`, {
+    res = await api(`${base}/api/v1/users/me/saved?page=1&limit=10`, {
       headers: { Cookie: cookies },
     });
     assert.equal(res.status, 200);
     const listed = await json(res);
     assert.equal(listed.meta.total, 1);
 
-    res = await fetch(`${base}/api/v1/users/me/saved/not-an-id`, {
+    res = await api(`${base}/api/v1/users/me/saved/not-an-id`, {
       method: 'POST',
       headers: { Cookie: cookies },
     });
     assert.equal(res.status, 400);
 
-    res = await fetch(`${base}/api/v1/users/me/saved/${job._id}`, {
+    res = await api(`${base}/api/v1/users/me/saved/${job._id}`, {
       method: 'DELETE',
       headers: { Cookie: cookies },
     });
     assert.equal(res.status, 200);
 
     // Logout clears session.
-    res = await fetch(`${base}/api/v1/auth/logout`, {
+    res = await api(`${base}/api/v1/auth/logout`, {
       method: 'POST',
       headers: { Cookie: cookies },
     });

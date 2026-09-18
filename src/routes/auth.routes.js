@@ -1,6 +1,7 @@
 import express from 'express';
 
 import {
+  csrf,
   forgotPassword,
   googleLogin,
   login,
@@ -13,6 +14,7 @@ import {
 } from '../controllers/auth.controller.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import requireAuth from '../middlewares/requireAuth.middleware.js';
+import requireCsrf from '../middlewares/requireCsrf.middleware.js';
 import { authLimiter } from '../config/security.js';
 import {
   forgotPasswordSchema,
@@ -25,19 +27,39 @@ import {
 
 const router = express.Router();
 
-router.post('/signup', authLimiter, validate(registerSchema), signup);
-router.post('/login', authLimiter, validate(loginSchema), login);
-router.post('/google', authLimiter, validate(googleSchema), googleLogin);
-router.post('/refresh', refresh);
-router.post('/logout', logout);
-router.post('/verify-email/request', authLimiter, requireAuth, requestVerifyEmail);
-router.post('/verify-email', authLimiter, validate(verifyEmailSchema), verifyEmail);
+router.get('/csrf', csrf);
+router.post('/signup', authLimiter, validate(registerSchema), requireCsrf, signup);
+router.post('/login', authLimiter, validate(loginSchema), requireCsrf, login);
+router.post('/google', authLimiter, validate(googleSchema), requireCsrf, googleLogin);
+router.post('/refresh', requireCsrf, refresh);
+router.post('/logout', requireCsrf, logout);
+router.post(
+  '/verify-email/request',
+  authLimiter,
+  requireAuth,
+  requireCsrf,
+  requestVerifyEmail
+);
+router.post(
+  '/verify-email',
+  authLimiter,
+  validate(verifyEmailSchema),
+  requireCsrf,
+  verifyEmail
+);
 router.post(
   '/forgot-password',
   authLimiter,
   validate(forgotPasswordSchema),
+  requireCsrf,
   forgotPassword
 );
-router.post('/reset-password', authLimiter, validate(resetPasswordSchema), resetPassword);
+router.post(
+  '/reset-password',
+  authLimiter,
+  validate(resetPasswordSchema),
+  requireCsrf,
+  resetPassword
+);
 
 export default router;

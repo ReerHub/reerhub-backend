@@ -14,10 +14,10 @@ export const staggeredCronFor = (sourceId) => {
 
 // Daily repeat per source. jobId `daily-<sourceId>` makes scheduling idempotent:
 // restarts / redeploys never create duplicate cron entries.
-export const ensureDailySchedules = async () => {
-  const queue = getSyncQueue();
+export const ensureDailySchedules = async (queue = getSyncQueue()) => {
   const override = process.env.SYNC_CRON;
   const sources = await JobSource.find({ isActive: true }).select('_id name');
+  const activeIds = new Set(sources.map((s) => String(s._id)));
 
   for (const source of sources) {
     const cron = override || staggeredCronFor(source._id);
@@ -26,6 +26,21 @@ export const ensureDailySchedules = async () => {
       immediately: false,
     });
     console.log(`Scheduled daily sync for ${source.name} (${cron})`);
+  }
+
+  // Prune schedulers for deleted/deactivated sources. Without this, BullMQ
+  // keeps firing repeat jobs for ghost source IDs on every boot (each fails
+  // 3x in the worker and spams the logs). Only `daily-*` entries are
+  // touched; anything else in the queue is left alone.
+  const schedulers = await queue.getJobSchedulers();
+  for (const scheduler of schedulers || []) {
+    const name = scheduler?.name ?? scheduler?.id;
+    if (typeof name !== 'string' || !name.startsWith('daily-')) continue;
+    const sourceId = name.slice('daily-'.length);
+    if (!activeIds.has(sourceId)) {
+      await queue.removeJobScheduler(name);
+      console.log(`Removed stale sync schedule ${name}`);
+    }
   }
 };
 
