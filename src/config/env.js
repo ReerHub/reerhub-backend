@@ -29,6 +29,9 @@ if (process.env.NODE_ENV === 'production') {
       `Missing required SMTP env vars in production: ${missingSmtp.join(', ')}`
     );
   }
+  if (!process.env.TURNSTILE_SECRET_KEY) {
+    throw new Error('TURNSTILE_SECRET_KEY must be set in production (bot protection).');
+  }
   const dbName = (process.env.MONGO_DB_NAME || '').toLowerCase();
   if (
     !dbName ||
