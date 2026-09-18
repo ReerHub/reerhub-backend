@@ -26,9 +26,9 @@ jobs:
       - run: npm ci
       - run: npm audit --audit-level=high
       - run: npm run lint
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # NOTE: gitleaks-action now requires a paid license key for org repos,
+      # so leak prevention relies on GitHub's free native protections instead:
+      # enable Secret scanning + Push protection in repo Settings → Code security.
       - run: npm test
         env:
           MONGO_URI: mongodb://127.0.0.1:27017
