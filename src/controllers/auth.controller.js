@@ -71,7 +71,9 @@ const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 
 export const login = TryCatch(async (req, res) => {
-  const { email, password } = req.validated;
+  const { email, password, turnstileToken } = req.validated;
+  const human = await verifyTurnstileToken(turnstileToken, req.ip);
+  if (!human) throw new ApiError(403, 'Bot check failed. Please try again.');
   // Generic messages throughout to avoid user enumeration.
   const user = await User.findOne({ email: email.toLowerCase() }).select(
     '+passwordHash +failedLoginAttempts +lockUntil'
@@ -190,6 +192,23 @@ export const logout = TryCatch(async (req, res) => {
 export const requestVerifyEmail = TryCatch(async (req, res) => {
   const token = await issueVerifyToken(req.user._id);
   await sendVerifyEmail({ to: req.user.email, token });
+  res.status(200).json({ success: true, data: { sent: true } });
+});
+
+// Public resend for logged-out users with an expired link (always 200,
+// bot-checked, only sends to existing unverified email accounts).
+export const resendVerifyPublic = TryCatch(async (req, res) => {
+  const human = await verifyTurnstileToken(req.validated.turnstileToken, req.ip);
+  if (!human) throw new ApiError(403, 'Bot check failed. Please try again.');
+  const user = await User.findOne({ email: req.validated.email });
+  if (user && !user.emailVerified && user.authProvider === 'email') {
+    const token = await issueVerifyToken(user._id);
+    try {
+      await sendVerifyEmail({ to: user.email, token });
+    } catch {
+      // Best effort.
+    }
+  }
   res.status(200).json({ success: true, data: { sent: true } });
 });
 

@@ -1,5 +1,9 @@
 # Changelog (backend)
 
+## Unreleased — Login Turnstile + public verify resend
+
+- Turnstile enforced on login (was signup/forgot only); `POST /auth/verify-email/resend` (public, always-200, rate-capped) unblocks logged-out users with expired links.
+
 ## Unreleased — Global job sort
 
 - `GET /jobs?sort=updated|az` (title A–Z, global across pages; text search keeps relevance order). Invalid values 400.

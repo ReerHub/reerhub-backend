@@ -25,6 +25,7 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   email,
   password: z.string().min(1).max(128),
+  turnstileToken: z.string().min(1).max(2048).optional(),
 });
 
 export const googleSchema = z.object({
@@ -36,6 +37,11 @@ export const verifyEmailSchema = z.object({
 });
 
 export const forgotPasswordSchema = z.object({
+  email,
+  turnstileToken: z.string().min(1).max(2048).optional(),
+});
+
+export const resendVerifySchema = z.object({
   email,
   turnstileToken: z.string().min(1).max(2048).optional(),
 });
