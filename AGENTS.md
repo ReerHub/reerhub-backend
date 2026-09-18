@@ -24,6 +24,7 @@ This repo is **self-contained**: product context, architecture, decisions, chang
 - Product invariants: deterministic ATS adapters only; multiple sources per company; store raw + normalized; never delete jobs (mark `closed`); failed syncs never close jobs; track `postedAt`/`firstSeenAt`/`lastSeenAt`; Apply always uses the official `applicationUrl`; tech-only 9-track taxonomy (`software ai-ml data cloud-infra mobile security qa systems eng-management`); India-first (`indiaOnly` default true).
 - Commits: `feat:`/`fix:`/`chore:`/`ci:`/`docs:`, short imperative. Only commit/push/PR when asked. Never commit `.env`/secrets/`node_modules`.
 - **Branching: feature branches → PR into `develop` → tested → PR `develop` → `main` (auto-deploys). Never touch `main` directly.**
+- **Branching: feature branches → PR into `develop` → tested → PR `develop` → `main` (auto-deploys). Never touch `main` directly.**
 
 ## Gotchas
 
