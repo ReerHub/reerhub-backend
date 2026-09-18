@@ -17,6 +17,11 @@ import syncLogRoutes from './routes/syncLog.routes.js';
 
 const app = express();
 
+// Behind Render's proxy, client IPs arrive via X-Forwarded-For. Trust the
+// single proxy hop so express-rate-limit keys per real user IP instead of
+// lumping everyone behind Render's egress IP into one shared bucket.
+app.set('trust proxy', 1);
+
 // 1. SECURITY MIDDLEWARE
 securityMiddlewares(app);
 

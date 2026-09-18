@@ -5,7 +5,6 @@ import mongoose from 'mongoose';
 import '../src/config/env.js';
 import app from '../src/app.js';
 import User from '../src/models/user.model.js';
-
 const startServer = () =>
   new Promise((resolve) => {
     const server = app.listen(0, () => resolve(server));
@@ -200,6 +199,49 @@ test('turnstile bypasses in test env, forgot limiter caps abuse', async () => {
     assert.equal(statuses[4], 429);
     assert.equal(statuses[5], 429);
   } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await mongoose.disconnect();
+  }
+});
+
+test('trust proxy on; session cookies httpOnly and host-only outside prod', async () => {
+  assert.equal(app.get('trust proxy'), 1);
+
+  process.env.NODE_ENV = 'test';
+  const dbName = process.env.MONGO_DB_NAME || 'reerhub-test';
+  if (mongoose.connection.readyState === 0) {
+    await mongoose.connect(process.env.MONGO_URI, { dbName });
+  }
+  const server = await startServer();
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const email = `cookie-${Date.now()}@example.com`;
+
+  try {
+    const csrfRes = await fetch(`${base}/api/v1/auth/csrf`);
+    const csrf = (await csrfRes.json()).data.csrfToken;
+    const jar = csrfRes.headers
+      .getSetCookie()
+      .map((c) => c.split(';')[0])
+      .join('; ');
+    const res = await fetch(`${base}/api/v1/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: jar,
+        'x-csrf-token': csrf,
+      },
+      body: JSON.stringify({ name: 'Cookie User', email, password: 'password123' }),
+    });
+    assert.equal(res.status, 201);
+    const setCookies = res.headers.getSetCookie();
+    const access = setCookies.find((c) => c.startsWith('accessToken='));
+    assert.ok(access.includes('HttpOnly'), 'access cookie is httpOnly');
+    assert.ok(
+      !access.toLowerCase().includes('domain='),
+      'non-prod cookies stay host-only'
+    );
+  } finally {
+    await User.deleteOne({ email });
     await new Promise((resolve) => server.close(resolve));
     await mongoose.disconnect();
   }
