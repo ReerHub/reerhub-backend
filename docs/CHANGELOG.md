@@ -1,5 +1,9 @@
 # Changelog (backend)
 
+## Unreleased — Queue isolation for shared Redis
+
+- `QUEUE_NAME` override (default `reerhub-sync`; staging uses `reerhub-sync-staging`) so prod + staging share one free Redis plan safely. ADR-009 adopts the staging promotion flow.
+
 ## Unreleased — Login Turnstile + public verify resend
 
 - Turnstile enforced on login (was signup/forgot only); `POST /auth/verify-email/resend` (public, always-200, rate-capped) unblocks logged-out users with expired links.

@@ -2,6 +2,7 @@ import { Worker } from 'bullmq';
 
 import '../config/env.js';
 import { getAdapter } from '../adapters/index.js';
+import { QUEUE_NAME } from '../config/queue.js';
 import JobSource from '../models/jobSource.model.js';
 import { syncJobSource } from '../services/sync.service.js';
 
@@ -18,7 +19,7 @@ export const startSyncWorker = () => {
   if (worker) return worker;
 
   worker = new Worker(
-    'reerhub-sync',
+    QUEUE_NAME,
     async (job) => {
       const source = await JobSource.findById(job.data.sourceId);
       if (!source) {
@@ -49,7 +50,7 @@ export const startSyncWorker = () => {
     console.error(`Sync job ${job?.id} failed:`, error.message);
   });
 
-  console.log('✅ Sync worker started (reerhub-sync)');
+  console.log(`✅ Sync worker started (${QUEUE_NAME})`);
   return worker;
 };
 
