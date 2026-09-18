@@ -104,6 +104,13 @@ export const listJobs = TryCatch(async (req, res) => {
   let sort = { postedAt: -1, firstSeenAt: -1 };
   let projection = '-raw';
 
+  // Global sort: updated (default, newest first) or az (title A–Z).
+  // Text search keeps relevance order and ignores sort.
+  if (req.query.sort && !['updated', 'az'].includes(req.query.sort)) {
+    throw new ApiError(400, 'Invalid sort (updated|az)');
+  }
+  if (req.query.sort === 'az') sort = { title: 1, _id: 1 };
+
   if (req.query.q) {
     const query = String(req.query.q).trim().slice(0, 100);
     if (query) {
