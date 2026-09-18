@@ -48,23 +48,43 @@ export const listJobs = TryCatch(async (req, res) => {
     filter['locations.city'] = new RegExp(variants.map(escapeRegex).join('|'), 'i');
   }
   if (req.query.remoteType) {
-    if (!['onsite', 'hybrid', 'remote', 'unknown'].includes(req.query.remoteType)) {
+    const values = String(req.query.remoteType)
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
+    const allowed = ['onsite', 'hybrid', 'remote', 'unknown'];
+    if (values.length === 0 || values.some((v) => !allowed.includes(v))) {
       throw new ApiError(400, 'Invalid remoteType filter');
     }
-    filter.remoteType = req.query.remoteType;
+    filter.remoteType = values.length === 1 ? values[0] : { $in: values };
   }
-  if (req.query.employmentType) filter.employmentType = req.query.employmentType;
-  if (req.query.department) filter.department = req.query.department;
-  if (req.query.seniority) filter.seniority = req.query.seniority;
+  // Multi-value aware: comma-separated exact matches (e.g. seniority=Senior,Staff).
+  const multiValueFilter = (param, field) => {
+    if (!req.query[param]) return;
+    const values = String(req.query[param])
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean)
+      .slice(0, 20);
+    if (values.length === 0) return;
+    filter[field] = values.length === 1 ? values[0] : { $in: values };
+  };
+  multiValueFilter('employmentType', 'employmentType');
+  multiValueFilter('department', 'department');
+  multiValueFilter('seniority', 'seniority');
 
   // Pure tech platform: only tech tracks are stored, so no techOnly
   // escape hatch is needed. techTrack narrows to one of the 9 tracks,
   // techRole to a canonical role (e.g. "Backend Engineer", "SDET").
   if (req.query.techTrack) {
-    if (!TECH_TRACKS.includes(req.query.techTrack)) {
+    const tracks = String(req.query.techTrack)
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (tracks.length === 0 || tracks.some((t) => !TECH_TRACKS.includes(t))) {
       throw new ApiError(400, 'Invalid techTrack filter');
     }
-    filter.techTrack = req.query.techTrack;
+    filter.techTrack = tracks.length === 1 ? tracks[0] : { $in: tracks };
   }
   if (req.query.techRole) filter.techRole = req.query.techRole;
 
