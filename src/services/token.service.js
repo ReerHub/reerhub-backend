@@ -63,13 +63,21 @@ export const revokeRefreshToken = async (jti) => {
 
 const isProduction = () => process.env.NODE_ENV === 'production';
 
+// Production serves API and web on sibling subdomains (api.reerhub.com +
+// www.reerhub.com). Host-only cookies would be invisible to the frontend's
+// middleware, which must see accessToken to guard /dashboard and /profile.
+// Domain=.reerhub.com shares them across our subdomains (httpOnly preserved).
+// Dev stays host-only (localhost has no subdomains).
+const cookieBase = () => ({
+  httpOnly: true,
+  secure: isProduction(),
+  sameSite: isProduction() ? 'none' : 'lax',
+  path: '/',
+  ...(isProduction() ? { domain: '.reerhub.com' } : {}),
+});
+
 export const authCookies = (res, { accessToken, refreshToken }) => {
-  const base = {
-    httpOnly: true,
-    secure: isProduction(),
-    sameSite: isProduction() ? 'none' : 'lax',
-    path: '/',
-  };
+  const base = cookieBase();
   res.cookie('accessToken', accessToken, { ...base, maxAge: 15 * 60 * 1000 });
   res.cookie('refreshToken', refreshToken, {
     ...base,
@@ -78,12 +86,13 @@ export const authCookies = (res, { accessToken, refreshToken }) => {
 };
 
 export const clearAuthCookies = (res) => {
-  const base = {
-    httpOnly: true,
-    secure: isProduction(),
-    sameSite: isProduction() ? 'none' : 'lax',
-    path: '/',
-  };
-  res.clearCookie('accessToken', base);
-  res.clearCookie('refreshToken', base);
+  // Clear both the shared-domain cookie and any legacy host-only cookie
+  // (from before the domain was introduced) so logout always sticks.
+  const base = cookieBase();
+  const legacy = { ...base };
+  delete legacy.domain;
+  for (const opts of [base, legacy]) {
+    res.clearCookie('accessToken', opts);
+    res.clearCookie('refreshToken', opts);
+  }
 };

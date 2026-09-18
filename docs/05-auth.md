@@ -4,6 +4,7 @@
 
 - `accessToken` JWT 15m + `refreshToken` JWT 7d with `jti` bound in Redis (`refresh:<jti>`, TTL 7d). Rotation on every refresh; logout revokes one `jti`. Redis-down falls back to stateless verify (revocation weakened — logged, acceptable transiently).
 - Cookies: `HttpOnly`, `Secure` + `SameSite=None` in production (`Lax` dev), `Path=/`.
+- Production shares cookies across subdomains (`Domain=.reerhub.com`) so the frontend middleware on `www` can see `accessToken` set by `api`; dev stays host-only. Logout clears both the shared and any legacy host-only cookie.
 - Double-submit CSRF (`src/middlewares/requireCsrf.middleware.js`): readable `csrfToken` cookie (24h) echoed as `x-csrf-token`, timing-safe compare; all POST/PATCH/DELETE under `/auth` and `/users` enforce it, including login/signup/refresh (login CSRF matters).
 - Login throttle: 5 failures → `lockUntil` +15 min, generic 401/429 messages (no enumeration). Passwords: Zod min-8, `bcryptjs` cost 10. No 2FA yet.
 - Google: GIS button → backend verifies `idToken` via `google-auth-library` (`GOOGLE_CLIENT_ID`); links by `googleId`, falls back to email match; Google-verified emails auto-verify.

@@ -1,5 +1,10 @@
 # Changelog (backend)
 
+## Unreleased — Cross-domain session fix (on `fix/cookie-domain`)
+
+- Session cookies shared across subdomains in prod (`Domain=.reerhub.com`) so Next.js middleware sees `accessToken`; logout clears legacy host-only cookies too.
+- `trust proxy: 1` so rate limits key per real user IP behind Render (was one shared bucket + boot warning).
+
 ## Unreleased — Security hardening (`sec/hardening`, in review)
 
 - Turnstile bot check on signup + forgot-password (server verify, test/dev bypass, prod fail-fast) + 5/hour forgot cap.
