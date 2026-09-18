@@ -21,7 +21,12 @@ export const startSyncWorker = () => {
     'reerhub-sync',
     async (job) => {
       const source = await JobSource.findById(job.data.sourceId);
-      if (!source) throw new Error(`JobSource not found: ${job.data.sourceId}`);
+      if (!source) {
+        // Stale repeat/manual job for a deleted source: skip quietly instead
+        // of throwing (which would retry 3x and pile up failures).
+        console.log(`Skipping sync for deleted source ${job.data.sourceId}`);
+        return { skipped: true, reason: 'source-deleted' };
+      }
       if (!source.isActive) {
         console.log(`Skipping inactive source ${source._id}`);
         return { skipped: true };
