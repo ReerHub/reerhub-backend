@@ -12,6 +12,11 @@
 
 - Verify (24h) / reset (1h) single-use Redis tokens (`verify|reset:<sha256>`); forgot always 200; dev without SMTP is log-only. Links built from `FRONTEND_URL`.
 
+## Bot protection (`src/services/turnstile.service.js`)
+
+- Cloudflare Turnstile verified server-side on signup + forgot-password (`turnstileToken` from the invisible frontend widget). Bypassed in tests and in dev when `TURNSTILE_SECRET_KEY` is unset; fail-fast requires it in production.
+- Forgot-password additionally capped at 5/hour (`forgotLimiter`) — each hit can burn a real email.
+
 ## Data rights (`src/controllers/user.controller.js`)
 
 - `GET /me/export` (user + saved jobs + counts + timestamp), `POST /me/password` (verifies current, rotates session), `DELETE /me` (user + saved jobs, clears cookies; orphaned refresh entries die on TTL and refresh re-checks account existence).

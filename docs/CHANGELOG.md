@@ -1,5 +1,10 @@
 # Changelog (backend)
 
+## Unreleased — Security hardening (`sec/hardening`, in review)
+
+- Turnstile bot check on signup + forgot-password (server verify, test/dev bypass, prod fail-fast) + 5/hour forgot cap.
+- Least-privilege Actions, Gitleaks leak scan, `SECURITY.md`, `.env*` gitignore hardening.
+
 ## 2026-09-18 — Production hardening + scheduler self-heal (on `main`)
 
 - Account delete/export/change-password; refresh rejects deleted accounts.
