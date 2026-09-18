@@ -1,0 +1,20 @@
+{
+  "$schema": "https://skills.sh/schema.json",
+  "skills": [
+    {
+      "name": "find-skills",
+      "source": "https://github.com/vercel-labs/skills",
+      "scope": "project"
+    },
+    {
+      "name": "mongodb-query-optimizer",
+      "source": "mongodb/agent-skills",
+      "scope": "project"
+    },
+    {
+      "name": "code-review",
+      "source": "mattpocock/skills",
+      "scope": "project"
+    }
+  ]
+}
