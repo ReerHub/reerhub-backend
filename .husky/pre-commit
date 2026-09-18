@@ -1,3 +1,4 @@
 #!/usr/bin/env sh
 
+sh scripts/check-secrets.sh || exit 1
 npx lint-staged
