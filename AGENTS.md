@@ -35,6 +35,6 @@ This repo is **self-contained**: product context, architecture, decisions, chang
 
 `find-skills` (meta), `mongodb-query-optimizer` (official MongoDB — index/aggregation guidance), `code-review` (two-axis branch review). Load via the skill tool when the task matches. `skills.json` pins the set for IDE teammates.
 
-## Docs discipline
+## Docs discipline (minimal by design)
 
-`docs/` is the source of truth — update it with every milestone: `CHANGELOG.md` (dated entries), `TODO.md` (move done → Done), `KNOWN_ISSUES.md` (move fixed → Resolved), specs + `README.md` (keep route/model/env lists truthful), `06-deployment.md` env matrix (mirror of `src/config/env.js` fail-fast list).
+`docs/` holds exactly three files: `DECISIONS.md`, `CHANGELOG.md`, `06-deployment.md` (env matrix mirrors `src/config/env.js`). README covers setup/product/roadmap. Do NOT create new doc files, TODO lists, or issue logs without a triggering incident or user-visible requirement — backlog lives in README Roadmap or GitHub Issues.

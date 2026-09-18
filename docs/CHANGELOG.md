@@ -1,5 +1,9 @@
 # Changelog (backend)
 
+## Unreleased — Docs trim
+
+- Collapsed `docs/` to DECISIONS + CHANGELOG + deployment; roadmap folded into README; deleted TODO/KNOWN_ISSUES/specs (history preserved in git). New rule: no new doc files without a triggering requirement.
+
 ## Unreleased — Cross-domain session fix (on `fix/cookie-domain`)
 
 - Session cookies shared across subdomains in prod (`Domain=.reerhub.com`) so Next.js middleware sees `accessToken`; logout clears legacy host-only cookies too.
