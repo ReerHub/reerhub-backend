@@ -15,7 +15,7 @@ import {
 import { validate } from '../middlewares/validate.middleware.js';
 import requireAuth from '../middlewares/requireAuth.middleware.js';
 import requireCsrf from '../middlewares/requireCsrf.middleware.js';
-import { authLimiter } from '../config/security.js';
+import { authLimiter, forgotLimiter } from '../config/security.js';
 import {
   forgotPasswordSchema,
   googleSchema,
@@ -49,6 +49,7 @@ router.post(
 );
 router.post(
   '/forgot-password',
+  forgotLimiter,
   authLimiter,
   validate(forgotPasswordSchema),
   requireCsrf,

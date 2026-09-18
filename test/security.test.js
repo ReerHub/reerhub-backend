@@ -150,3 +150,57 @@ test('csrf enforced, lockout, change-password, export, delete', async () => {
     await mongoose.disconnect();
   }
 });
+
+test('turnstile bypasses in test env, forgot limiter caps abuse', async () => {
+  process.env.NODE_ENV = 'test';
+  const dbName = process.env.MONGO_DB_NAME || 'reerhub-test';
+  if (mongoose.connection.readyState === 0) {
+    await mongoose.connect(process.env.MONGO_URI, { dbName });
+  }
+  const server = await startServer();
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    // No turnstile token needed in tests (bypass), CSRF still enforced.
+    let res = await fetch(`${base}/api/v1/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'nobody@example.com' }),
+    });
+    assert.equal(res.status, 403);
+
+    const csrfRes = await fetch(`${base}/api/v1/auth/csrf`);
+    const csrf = (await csrfRes.json()).data.csrfToken;
+    const jar = csrfRes.headers
+      .getSetCookie()
+      .map((c) => c.split(';')[0])
+      .join('; ');
+    const post = (body) =>
+      fetch(`${base}/api/v1/auth/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: jar,
+          'x-csrf-token': csrf,
+        },
+        body: JSON.stringify(body),
+      });
+
+    // First hits pass (always-200, bypass in test); the 5/hr cap trips after.
+    // Note: the bare CSRF probe above already consumed one limiter slot.
+    const statuses = [];
+    for (let i = 0; i < 6; i++) {
+      res = await post({ email: 'nobody@example.com' });
+      statuses.push(res.status);
+    }
+    assert.ok(
+      statuses.slice(0, 4).every((s) => s === 200),
+      `first 4 pass: ${statuses}`
+    );
+    assert.equal(statuses[4], 429);
+    assert.equal(statuses[5], 429);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await mongoose.disconnect();
+  }
+});

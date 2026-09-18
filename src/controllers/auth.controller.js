@@ -13,6 +13,7 @@ import {
   verifyRefreshToken,
 } from '../services/token.service.js';
 import { verifyGoogleIdToken } from '../services/google.service.js';
+import { verifyTurnstileToken } from '../services/turnstile.service.js';
 import {
   consumeResetToken,
   consumeVerifyToken,
@@ -41,7 +42,9 @@ const issueSession = async (res, userId) => {
 };
 
 export const signup = TryCatch(async (req, res) => {
-  const { name, email, password } = req.validated;
+  const { name, email, password, turnstileToken } = req.validated;
+  const human = await verifyTurnstileToken(turnstileToken, req.ip);
+  if (!human) throw new ApiError(403, 'Bot check failed. Please try again.');
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) throw new ApiError(409, 'An account with this email exists');
 
@@ -202,6 +205,8 @@ export const verifyEmail = TryCatch(async (req, res) => {
 });
 
 export const forgotPassword = TryCatch(async (req, res) => {
+  const human = await verifyTurnstileToken(req.validated.turnstileToken, req.ip);
+  if (!human) throw new ApiError(403, 'Bot check failed. Please try again.');
   const user = await User.findOne({ email: req.validated.email });
   // Always 200 to avoid email enumeration.
   if (user && user.authProvider === 'email') {
