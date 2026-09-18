@@ -8,6 +8,7 @@ import {
   logout,
   refresh,
   requestVerifyEmail,
+  resendVerifyPublic,
   resetPassword,
   signup,
   verifyEmail,
@@ -21,6 +22,7 @@ import {
   googleSchema,
   loginSchema,
   registerSchema,
+  resendVerifySchema,
   resetPasswordSchema,
   verifyEmailSchema,
 } from '../validators/auth.schema.js';
@@ -46,6 +48,14 @@ router.post(
   validate(verifyEmailSchema),
   requireCsrf,
   verifyEmail
+);
+router.post(
+  '/verify-email/resend',
+  forgotLimiter,
+  authLimiter,
+  validate(resendVerifySchema),
+  requireCsrf,
+  resendVerifyPublic
 );
 router.post(
   '/forgot-password',
