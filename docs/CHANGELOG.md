@@ -1,5 +1,9 @@
 # Changelog (backend)
 
+## Unreleased — Global job sort
+
+- `GET /jobs?sort=updated|az` (title A–Z, global across pages; text search keeps relevance order). Invalid values 400.
+
 ## Unreleased — Docs trim
 
 - Collapsed `docs/` to DECISIONS + CHANGELOG + deployment; roadmap folded into README; deleted TODO/KNOWN_ISSUES/specs (history preserved in git). New rule: no new doc files without a triggering requirement.
