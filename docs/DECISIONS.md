@@ -33,3 +33,7 @@ No NextAuth/session lib; backend verifies with `google-auth-library`, links by `
 ## ADR-008 — Resend SMTP, single-use token links (2026-09-18)
 
 `nodemailer` + `SMTP_*`, Redis `verify|reset:<sha256>` (24h/1h), forgot always 200, dev log-only. Reason: provider-agnostic, no SDK, no enumeration.
+
+## ADR-009 — Staging promotion flow (2026-09-19, supersedes ADR-005)
+
+Branches merge to `develop` (auto-deploys staging: `staging-api.reerhub.com`); after verification, `develop` merges to `main` (auto-deploys prod). Reason: PRs need a live proving ground before reaching users; free tier can't offer more. Consequence: staging shares the dev MongoDB and one Redis plan (isolated via `QUEUE_NAME`); staging env mirrors prod secrets; cookie `Domain=.reerhub.com` roams across staging (accepted).
