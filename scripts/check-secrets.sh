@@ -10,8 +10,8 @@ trap 'rm -f "$TMP_PATTERNS"' EXIT INT TERM
 cat > "$TMP_PATTERNS" <<'EOF'
 -----BEGIN (RSA |EC |OPENSSH |DSA |ED25519 )?PRIVATE KEY-----
 mongodb(\+srv)?://[^/[:space:]]*:[^@/:space:][^@[:space:]]*@
-(xox[bap]-|ghp_|gho_|AKIA|AIza|re_|sk-live-|sk-test-)[A-Za-z0-9_/-]{16,}
-(api[_-]?key|secret|passwd|password|mongo_uri|redis_url|smtp_pass|private_key)[[:space:]]*[:=][[:space:]]*['"]?[^'"[:space:]]{12,}
+(xox[bap]-|ghp_|gho_|AKIA|AIza|re_|sk-live-|sk-test-|sk_live_|sk_test_)[A-Za-z0-9/-]{16,}
+(api[_-]?key|secret|passwd|password|mongo_uri|redis_url|smtp_pass|private_key)[[:space:]]*[:=][[:space:]]*['"]?[^'"[:space:]${}.]{12,}
 EOF
 
 fail=0
