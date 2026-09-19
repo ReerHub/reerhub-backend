@@ -26,3 +26,15 @@
 - First-time data: `MONGO_URI=<atlas> MONGO_DB_NAME=reerhub-prod npm run seed`, then per-source `POST /job-sources/:id/sync` with `x-api-key`, then `SMOKE_API_BASE=https://api.reerhub.com/api/v1 node src/scripts/smoke.js` (8 checks).
 - Free tier sleeps → in-app cron unreliable; `.github/workflows/sync.yml` (daily 02:00 UTC + manual) wakes the API and syncs every source (needs `API_KEY` Actions secret; GitHub pauses schedules after 60 idle days).
 - Rollback: Render → Deploys → Redeploy last good; or `git revert` on `main`.
+
+## Staging (`develop` → `staging-api.reerhub.com`)
+
+- Second Render service tracking the `develop` branch. Same env as prod, except:
+  ```dotenv
+  MONGO_DB_NAME=reerhub-dev
+  QUEUE_NAME=reerhub-sync-staging
+  CORS_FRONTEND_URL=https://staging.reerhub.com
+  FRONTEND_URL=https://staging.reerhub.com
+  ```
+- Shares one free Redis plan with prod (isolated by `QUEUE_NAME`) and the dev MongoDB. JWT/SMTP/Google secrets mirror prod.
+- Verify: `SMOKE_API_BASE=https://staging-api.reerhub.com/api/v1 node src/scripts/smoke.js` + throwaway-account auth flow (signup → verify → save → delete).

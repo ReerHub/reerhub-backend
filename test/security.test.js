@@ -246,3 +246,69 @@ test('trust proxy on; session cookies httpOnly and host-only outside prod', asyn
     await mongoose.disconnect();
   }
 });
+
+test('public verify resend is always-200 and CSRF-guarded', async () => {
+  process.env.NODE_ENV = 'test';
+  const dbName = process.env.MONGO_DB_NAME || 'reerhub-test';
+  if (mongoose.connection.readyState === 0) {
+    await mongoose.connect(process.env.MONGO_URI, { dbName });
+  }
+  const server = await startServer();
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const email = `resend-${Date.now()}@example.com`;
+  // Fresh rate-limit budget: trust-proxy keys limits by X-Forwarded-For.
+  const FWD = { 'X-Forwarded-For': '10.200.0.7' };
+
+  try {
+    // No CSRF → 403 even though the endpoint is public.
+    let res = await fetch(`${base}/api/v1/auth/verify-email/resend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...FWD },
+      body: JSON.stringify({ email }),
+    });
+    assert.equal(res.status, 403);
+
+    const csrfRes = await fetch(`${base}/api/v1/auth/csrf`);
+    const csrf = (await csrfRes.json()).data.csrfToken;
+    const jar = csrfRes.headers
+      .getSetCookie()
+      .map((c) => c.split(';')[0])
+      .join('; ');
+    const post = (body) =>
+      fetch(`${base}/api/v1/auth/verify-email/resend`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: jar,
+          'x-csrf-token': csrf,
+          ...FWD,
+        },
+        body: JSON.stringify(body),
+      });
+
+    // Unknown address → 200 (no enumeration, no email).
+    res = await post({ email });
+    assert.equal(res.status, 200);
+
+    // Existing unverified account → 200 (email best-effort in test).
+    const signupRes = await fetch(`${base}/api/v1/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: jar,
+        'x-csrf-token': csrf,
+        ...FWD,
+      },
+      body: JSON.stringify({ name: 'Resend User', email, password: 'password123' }),
+    });
+    assert.equal(signupRes.status, 201);
+    res = await post({ email });
+    assert.equal(res.status, 200);
+    const user = await User.findOne({ email });
+    assert.equal(user.emailVerified, false);
+  } finally {
+    await User.deleteOne({ email });
+    await new Promise((resolve) => server.close(resolve));
+    await mongoose.disconnect();
+  }
+});

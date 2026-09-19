@@ -1,5 +1,18 @@
 # Changelog (backend)
 
+## Unreleased — Docs gaps + CI notes
+
+- CORS preflight now allows `x-csrf-token` (was blocking every browser mutation with zero backend logs).
+- Gitleaks Action removed (license-walled for orgs); leak prevention is native push protection + secret scanning + the local pre-commit hook.
+
+## Unreleased — Queue isolation for shared Redis
+
+- `QUEUE_NAME` override (default `reerhub-sync`; staging uses `reerhub-sync-staging`) so prod + staging share one free Redis plan safely. ADR-009 adopts the staging promotion flow.
+
+## Unreleased — Login Turnstile + public verify resend
+
+- Turnstile enforced on login (was signup/forgot only); `POST /auth/verify-email/resend` (public, always-200, rate-capped) unblocks logged-out users with expired links.
+
 ## Unreleased — Global job sort
 
 - `GET /jobs?sort=updated|az` (title A–Z, global across pages; text search keeps relevance order). Invalid values 400.
