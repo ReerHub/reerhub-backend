@@ -11,7 +11,7 @@ nvm use 22            # Node 22 required (.nvmrc)
 npm install
 cp .env.example .env  # then fill MONGO_URI + REDIS_URL (ask the team for dev values)
 npm run dev           # → http://localhost:8000
-npm test              # 33 tests, isolated reerhub-test DB
+npm test              # 35 tests, isolated reerhub-test DB
 ```
 
 Local `.env` points at the shared Atlas dev DB (`reerhub-dev`): reads are safe, writes/seeds affect everyone — say so before running them.
@@ -20,7 +20,7 @@ Local `.env` points at the shared Atlas dev DB (`reerhub-dev`): reads are safe, 
 
 - **Ingestion:** Greenhouse/Lever/Ashby/SmartRecruiters adapters → normalize → 9-track classify (non-tech dropped) → bulkWrite → change detection → sync logs. 5 companies, ~40 open India roles. Daily BullMQ crons (staggered 02:00–05:00, self-pruning) + `POST /job-sources/:id/sync` (API key) + `npm run sync:source <pattern>`.
 - **Reads:** `/health` (db/redis checks), `/jobs` (q/city/remoteType/employmentType/seniority/techTrack/techRole/skills/indiaOnly — multi-value aware; `sort=updated|az`), `/jobs/:id`, `/companies[/:slug]` (live counts), `/job-sources`, `/sync-logs`.
-- **Auth (cookies):** signup/login/Google/refresh/logout, verify + forgot/reset email, `GET/PATCH /users/me`, change-password, export, account delete, saved-jobs CRUD. Lockout + CSRF + Turnstile enforced; sessions shared across subdomains in prod.
+- **Auth (cookies):** signup/login/Google/refresh/logout, verify + forgot/reset email (public logged-out resend included), `GET/PATCH /users/me`, change-password, export, account delete, saved-jobs CRUD. Lockout + CSRF + Turnstile enforced; sessions shared across subdomains in prod.
 - **Writes** (companies/sources/sync) need `x-api-key` header.
 
 ## Docs

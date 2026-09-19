@@ -1,5 +1,10 @@
 # Changelog (backend)
 
+## Unreleased — Docs gaps + CI notes
+
+- CORS preflight now allows `x-csrf-token` (was blocking every browser mutation with zero backend logs).
+- Gitleaks Action removed (license-walled for orgs); leak prevention is native push protection + secret scanning + the local pre-commit hook.
+
 ## Unreleased — Queue isolation for shared Redis
 
 - `QUEUE_NAME` override (default `reerhub-sync`; staging uses `reerhub-sync-staging`) so prod + staging share one free Redis plan safely. ADR-009 adopts the staging promotion flow.

@@ -5,3 +5,16 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # Minor + patch updates arrive as one grouped PR (safe to merge on green CI).
+    groups:
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Majors need a human: breaking APIs, peer conflicts. Upgrade deliberately,
+    # never from an automated PR.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
