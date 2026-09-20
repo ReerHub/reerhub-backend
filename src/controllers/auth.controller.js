@@ -15,10 +15,13 @@ import {
 import { verifyGoogleIdToken } from '../services/google.service.js';
 import { verifyTurnstileToken } from '../services/turnstile.service.js';
 import {
+  consumeMagicToken,
   consumeResetToken,
   consumeVerifyToken,
+  issueMagicToken,
   issueResetToken,
   issueVerifyToken,
+  sendMagicEmail,
   sendResetEmail,
   sendVerifyEmail,
 } from '../services/mail.service.js';
@@ -249,6 +252,53 @@ export const resetPassword = TryCatch(async (req, res) => {
   const passwordHash = await hashPassword(req.validated.password);
   await User.findByIdAndUpdate(userId, { passwordHash });
   res.status(200).json({ success: true, data: { reset: true } });
+});
+
+// Passwordless entry point: always 200 (no enumeration). Creates an
+// unverified email account on first use — signup is deprecated.
+export const requestMagicLink = TryCatch(async (req, res) => {
+  const human = await verifyTurnstileToken(req.validated.turnstileToken, req.ip);
+  if (!human) throw new ApiError(403, 'Bot check failed. Please try again.');
+  const email = req.validated.email;
+  let user = await User.findOne({ email });
+  if (!user) {
+    user = await User.create({
+      name: email.split('@')[0].slice(0, 120) || 'ReerHub User',
+      email,
+      authProvider: 'email',
+    });
+  }
+  const token = await issueMagicToken(user._id);
+  try {
+    await sendMagicEmail({ to: user.email, token });
+  } catch {
+    // Best effort.
+  }
+  res.status(200).json({ success: true, data: { sent: true } });
+});
+
+// Single-use 15-minute magic link. Auto-verifies the email and issues a
+// session (cookies), so the frontend lands authenticated.
+export const verifyMagic = TryCatch(async (req, res) => {
+  const token = String(req.query?.token || '');
+  if (!token) throw new ApiError(400, 'A valid magic link is required');
+  const userId = await consumeMagicToken(token);
+  if (!userId) throw new ApiError(400, 'Invalid or expired magic link');
+
+  await User.findByIdAndUpdate(userId, {
+    emailVerified: true,
+    emailVerifiedAt: new Date(),
+  });
+  await issueSession(res, userId);
+  const fresh = await User.findById(userId).select('-passwordHash');
+  if (!fresh) throw new ApiError(401, 'Authentication required');
+  res.status(200).json({ success: true, data: toPublicUser(fresh) });
+});
+
+// Deprecated password surface (signup/login/forgot/reset): 410 Gone.
+// Handlers stay until next release, then routes + schemas are removed.
+export const gone = TryCatch(async (_req, _res) => {
+  throw new ApiError(410, 'Password sign-in is gone. Use magic-link sign-in.');
 });
 
 export const csrf = TryCatch(async (req, res) => {
