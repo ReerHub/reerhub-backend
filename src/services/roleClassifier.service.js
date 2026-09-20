@@ -388,6 +388,8 @@ const NON_INDIA_MARKERS = [
   'sydney',
   'melbourne',
   'singapore',
+  'malaysia',
+  'kuala lumpur',
   'dubai',
   'germany',
   'france',

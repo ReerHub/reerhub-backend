@@ -180,6 +180,13 @@ test('detects India scope from normalized and raw locations', () => {
   assert.equal(isIndiaRole(['Remote']), true);
   assert.equal(isIndiaRole(['New York']), false);
   assert.equal(isIndiaRole(['Remote, Italy']), false);
+  assert.equal(isIndiaRole(['Malaysia']), false);
+  assert.equal(isIndiaRole(['Kuala Lumpur']), false);
+  assert.equal(isIndiaRole([{ city: 'Malaysia', state: '', country: 'India' }]), false);
+  assert.equal(
+    isIndiaRole([{ city: 'Kuala Lumpur', state: '', country: 'India' }]),
+    false
+  );
   assert.equal(
     isIndiaRole([{ city: 'Remote', state: 'Italy', country: 'India' }]),
     false

@@ -4,6 +4,7 @@
  * Config: { boardToken: "razorpay" }
  * Why: deterministic JSON API, not HTML scraping. Stable IDs -> externalJobId.
  */
+import he from 'he';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout.js';
 
 export const fetchGreenhouseJobs = async (source) => {
@@ -23,7 +24,7 @@ export const fetchGreenhouseJobs = async (source) => {
     externalJobId: String(job.id),
     title: job.title,
     rawTitle: job.title,
-    description: job.content || '',
+    description: he.decode(job.content || ''),
     locations: job.location?.name || '',
     employmentType:
       job.metadata?.find((m) => m.name === 'Employment Type')?.value || undefined,
