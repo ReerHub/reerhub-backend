@@ -11,10 +11,13 @@ import JobSource from '../src/models/jobSource.model.js';
 import SavedJob from '../src/models/savedJob.model.js';
 import {
   loginSchema,
+  magicLinkSchema,
   registerSchema,
   updateMeSchema,
 } from '../src/validators/auth.schema.js';
 import { comparePassword, hashPassword } from '../src/utils/password.js';
+import { connectRedis, disconnectRedis } from '../src/config/redis.js';
+import { issueMagicToken } from '../src/services/mail.service.js';
 
 const startServer = () =>
   new Promise((resolve) => {
@@ -44,6 +47,8 @@ test('auth validators accept and reject', () => {
     !registerSchema.safeParse({ name: 'A', email: 'bad', password: 'short' }).success
   );
   assert.ok(loginSchema.safeParse({ email: 'a@b.co', password: 'x' }).success);
+  assert.ok(magicLinkSchema.safeParse({ email: 'a@b.co' }).success);
+  assert.ok(!magicLinkSchema.safeParse({ email: 'bad' }).success);
   assert.ok(
     updateMeSchema.safeParse({
       currentRole: 'Backend Engineer',
@@ -66,7 +71,7 @@ test('password hashing verifies', async () => {
   assert.ok(!(await comparePassword('wrongpass1', hash)));
 });
 
-test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
+test('magic-link/me/patch/logout + deprecated-410/verify/saved flows', async () => {
   process.env.NODE_ENV = 'test';
   const dbName = process.env.MONGO_DB_NAME || 'reerhub-test';
   if (mongoose.connection.readyState === 0) {
@@ -104,29 +109,66 @@ test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
     let res = await api(`${base}/api/v1/users/me`);
     assert.equal(res.status, 401);
 
-    // Signup creates session cookies.
-    res = await api(`${base}/api/v1/auth/signup`, {
+    // Deprecated password surface is gone (410), with or without CSRF.
+    for (const route of [
+      '/api/v1/auth/signup',
+      '/api/v1/auth/login',
+      '/api/v1/auth/forgot-password',
+      '/api/v1/auth/reset-password',
+    ]) {
+      res = await api(`${base}${route}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: 'password123' }),
+      });
+      assert.equal(res.status, 410, route);
+    }
+
+    // Magic link without CSRF is rejected.
+    res = await fetch(`${base}/api/v1/auth/magic-link`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'Test User',
-        email,
-        password: 'password123',
-      }),
+      body: JSON.stringify({ email }),
     });
-    assert.equal(res.status, 201);
+    assert.equal(res.status, 403);
+
+    // Magic-link request is always 200 (unknown or known — no enumeration).
+    res = await api(`${base}/api/v1/auth/magic-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'nobody-magic@example.com' }),
+    });
+    assert.equal(res.status, 200);
+    res = await api(`${base}/api/v1/auth/magic-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    assert.equal(res.status, 200);
+    let created = await User.findOne({ email });
+    assert.ok(created);
+    assert.equal(created.emailVerified, false);
+
+    // Bogus magic links fail safely.
+    res = await api(`${base}/api/v1/auth/verify-magic?token=bogus`);
+    assert.equal(res.status, 400);
+    res = await api(`${base}/api/v1/auth/verify-magic`);
+    assert.equal(res.status, 400);
+
+    // Full roundtrip: real single-use token → session cookies + auto-verify.
+    await connectRedis();
+    const magicToken = await issueMagicToken(created._id);
+    res = await api(`${base}/api/v1/auth/verify-magic?token=${magicToken}`);
+    assert.equal(res.status, 200);
     let cookies = cookiesFrom(res);
     assert.ok(cookies.includes('accessToken'));
-    const created = await json(res);
-    assert.equal(created.data.emailVerified, false);
+    assert.ok(cookies.includes('refreshToken'));
+    const verified = await json(res);
+    assert.equal(verified.data.emailVerified, true);
 
-    // Duplicate signup conflicts.
-    res = await api(`${base}/api/v1/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Dup', email, password: 'password123' }),
-    });
-    assert.equal(res.status, 409);
+    // Single-use: replaying the token fails.
+    res = await api(`${base}/api/v1/auth/verify-magic?token=${magicToken}`);
+    assert.equal(res.status, 400);
 
     // Authenticated /me works and exposes profile defaults.
     res = await api(`${base}/api/v1/users/me`, { headers: { Cookie: cookies } });
@@ -150,24 +192,6 @@ test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
     assert.equal(patched.data.profile.currentRole, 'Backend Engineer');
     assert.equal(patched.data.profile.techTrack, 'software');
 
-    // Wrong password rejected with generic message.
-    res = await api(`${base}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: 'wrongpassword1' }),
-    });
-    assert.equal(res.status, 401);
-
-    // Login re-issues cookies.
-    res = await api(`${base}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: 'password123' }),
-    });
-    assert.equal(res.status, 200);
-    cookies = cookiesFrom(res);
-    assert.ok(cookies.includes('refreshToken'));
-
     // Google without idToken is a validation error; invalid token is 401.
     res = await api(`${base}/api/v1/auth/google`, {
       method: 'POST',
@@ -182,7 +206,8 @@ test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
     });
     assert.equal(res.status, 401);
 
-    // Verify/reset with bogus tokens fail safely; forgot is always 200.
+    // Verify-email with bogus token fails safely; deprecated
+    // forgot/reset stay 410 even with valid-looking bodies.
     res = await api(`${base}/api/v1/auth/verify-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -194,19 +219,13 @@ test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     });
-    assert.equal(res.status, 200);
-    res = await api(`${base}/api/v1/auth/forgot-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'nobody@example.com' }),
-    });
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 410);
     res = await api(`${base}/api/v1/auth/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: 'bogus', password: 'newpassword1' }),
     });
-    assert.equal(res.status, 400);
+    assert.equal(res.status, 410);
 
     // Saved jobs: seed a job, save idempotently, list, unsave.
     const company = await Company.create({
@@ -285,8 +304,10 @@ test('signup/login/me/patch/logout + verify/reset/saved flows', async () => {
     await JobSource.findByIdAndDelete(source._id);
     await Company.findByIdAndDelete(company._id);
     await User.deleteOne({ email });
+    await User.deleteOne({ email: 'nobody-magic@example.com' });
   } finally {
     await new Promise((resolve) => server.close(resolve));
+    await disconnectRedis().catch(() => {});
     await mongoose.disconnect();
   }
 });

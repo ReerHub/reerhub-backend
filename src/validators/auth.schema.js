@@ -46,6 +46,11 @@ export const resendVerifySchema = z.object({
   turnstileToken: z.string().min(1).max(2048).optional(),
 });
 
+export const magicLinkSchema = z.object({
+  email,
+  turnstileToken: z.string().min(1).max(2048).optional(),
+});
+
 export const resetPasswordSchema = z.object({
   token: z.string().min(1).max(256),
   password,

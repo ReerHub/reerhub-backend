@@ -28,6 +28,27 @@ const parsePositiveInteger = (value, fallback, maximum) => {
   return Math.min(parsed, maximum);
 };
 
+// Anonymous teaser: full discovery (title/company/chips/location/date)
+// stays public, but description/skills/Apply collapse to a ~160-char
+// excerpt until sign-in. Crawlers see the same view (no cloaking).
+const EXCERPT_LENGTH = 160;
+const toExcerpt = (description) =>
+  String(description || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, EXCERPT_LENGTH);
+
+const toTeaserJob = (job) => {
+  const teaser = { ...job, excerpt: toExcerpt(job.description) };
+  delete teaser.description;
+  delete teaser.skills;
+  delete teaser.applicationUrl;
+  return teaser;
+};
+
+const shapeJobs = (req, jobs) => (req.user ? jobs : jobs.map(toTeaserJob));
+
 export const listJobs = TryCatch(async (req, res) => {
   const page = parsePositiveInteger(req.query.page, 1, 1000);
   const limit = parsePositiveInteger(req.query.limit, 20, 100);
@@ -127,7 +148,7 @@ export const listJobs = TryCatch(async (req, res) => {
         const total = await Job.countDocuments({ ...filter, $text: { $search: query } });
         return res.status(200).json({
           success: true,
-          data: textMatches,
+          data: shapeJobs(req, textMatches),
           pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
         });
       }
@@ -154,7 +175,7 @@ export const listJobs = TryCatch(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: jobs,
+    data: shapeJobs(req, jobs),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   });
 });
@@ -172,5 +193,5 @@ export const getJobById = TryCatch(async (req, res) => {
 
   if (!job) throw new ApiError(404, 'Job not found');
 
-  res.status(200).json({ success: true, data: job });
+  res.status(200).json({ success: true, data: req.user ? job : toTeaserJob(job) });
 });
