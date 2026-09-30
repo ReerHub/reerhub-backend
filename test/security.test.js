@@ -5,7 +5,6 @@ import mongoose from 'mongoose';
 import '../src/config/env.js';
 import app from '../src/app.js';
 import User from '../src/models/user.model.js';
-import { connectRedis, disconnectRedis } from '../src/config/redis.js';
 import { issueMagicToken } from '../src/services/mail.service.js';
 import { hashPassword } from '../src/utils/password.js';
 const startServer = () =>
@@ -88,7 +87,6 @@ test('csrf enforced, deprecated-410, change-password, export, delete', async () 
     }
 
     // Session via magic roundtrip (single-use token → cookies in jar).
-    await connectRedis();
     const user = await User.findOne({ email });
     const magicToken = await issueMagicToken(user._id);
     res = await api(`${base}/api/v1/auth/verify-magic?token=${magicToken}`);
@@ -141,7 +139,6 @@ test('csrf enforced, deprecated-410, change-password, export, delete', async () 
     assert.equal(await User.countDocuments({ email }), 0);
   } finally {
     await User.deleteOne({ email });
-    await disconnectRedis().catch(() => {});
     await new Promise((resolve) => server.close(resolve));
     await mongoose.disconnect();
   }
@@ -238,7 +235,6 @@ test('trust proxy on; session cookies httpOnly and host-only outside prod', asyn
     });
     assert.equal(res.status, 200);
     // Session cookies ride the magic-link verification, not the request.
-    await connectRedis();
     const created = await User.findOne({ email });
     assert.ok(created);
     const magicToken = await issueMagicToken(created._id);
@@ -253,7 +249,6 @@ test('trust proxy on; session cookies httpOnly and host-only outside prod', asyn
     );
   } finally {
     await User.deleteOne({ email });
-    await disconnectRedis().catch(() => {});
     await new Promise((resolve) => server.close(resolve));
     await mongoose.disconnect();
   }

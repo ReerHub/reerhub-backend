@@ -24,4 +24,4 @@ is deployed.
   sessions + CSRF. Reports must demonstrate impact beyond normal public use.
 - Out of scope: spam/phishing content reports (use the app's contact),
   theoretical findings without reproduction, third-party (Render/Vercel/
-  Atlas/Upstash) infrastructure issues — report those upstream.
+  Atlas) infrastructure issues — report those upstream.

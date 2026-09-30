@@ -5,8 +5,7 @@ import { getAdapter } from '../adapters/index.js';
 import JobSource from '../models/jobSource.model.js';
 import { syncJobSource } from '../services/sync.service.js';
 
-// Operator tool: run a source sync inline (same code path as the BullMQ
-// worker, but without Redis). Usage:
+// Operator tool: run a source sync inline. Usage:
 //   node src/scripts/syncSource.js freshworks
 //   node src/scripts/syncSource.js enterpret
 const pattern = process.argv[2];

@@ -16,7 +16,6 @@ import {
   updateMeSchema,
 } from '../src/validators/auth.schema.js';
 import { comparePassword, hashPassword } from '../src/utils/password.js';
-import { connectRedis, disconnectRedis } from '../src/config/redis.js';
 import { issueMagicToken } from '../src/services/mail.service.js';
 
 const startServer = () =>
@@ -156,7 +155,6 @@ test('magic-link/me/patch/logout + deprecated-410/verify/saved flows', async () 
     assert.equal(res.status, 400);
 
     // Full roundtrip: real single-use token → session cookies + auto-verify.
-    await connectRedis();
     const magicToken = await issueMagicToken(created._id);
     res = await api(`${base}/api/v1/auth/verify-magic?token=${magicToken}`);
     assert.equal(res.status, 200);
@@ -307,7 +305,6 @@ test('magic-link/me/patch/logout + deprecated-410/verify/saved flows', async () 
     await User.deleteOne({ email: 'nobody-magic@example.com' });
   } finally {
     await new Promise((resolve) => server.close(resolve));
-    await disconnectRedis().catch(() => {});
     await mongoose.disconnect();
   }
 });

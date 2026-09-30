@@ -3,24 +3,14 @@ import http from 'http';
 
 import app from './app.js';
 import connectDB, { disconnectDB } from './config/db.js';
-import { connectRedis, disconnectRedis } from './config/redis.js';
-import { closeSyncQueue } from './config/queue.js';
-import { ensureDailySchedules } from './workers/scheduler.js';
-import { startSyncWorker, stopSyncWorker } from './workers/sync.worker.js';
+import { startScheduler, stopScheduler } from './services/scheduler.service.js';
 
 const PORT = process.env.PORT || 8000;
 
 (async () => {
   try {
     await connectDB();
-    await connectRedis();
-
-    // Modular monolith (ADR-001): API + worker run in one process for MVP.
-    // Scale later by running the worker in its own process/container.
-    if (process.env.WORKER_ENABLED !== 'false') {
-      startSyncWorker();
-      await ensureDailySchedules();
-    }
+    await startScheduler();
 
     const server = http.createServer(app);
 
@@ -32,12 +22,8 @@ const PORT = process.env.PORT || 8000;
       console.log(`📴 ${signal} received, closing server gracefully...`);
       server.close(() => {
         (async () => {
-          // Ordered teardown: stop consuming worker first, then queue, then
-          // Redis, then the DB (each layer depends on the one below it).
           try {
-            await stopSyncWorker();
-            await closeSyncQueue();
-            await disconnectRedis();
+            stopScheduler();
             await disconnectDB();
           } catch (error) {
             console.error('❌ Shutdown error:', error);

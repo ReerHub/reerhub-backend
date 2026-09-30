@@ -2,7 +2,7 @@ const FETCH_TIMEOUT_MS = Number(process.env.ADAPTER_FETCH_TIMEOUT_MS) || 30000;
 
 /**
  * Shared ATS fetch: hard timeout + identifying user-agent.
- * Why: a hung board must never hold a BullMQ worker slot forever, and
+ * Why: a hung board must never hold an in-process scheduler slot forever, and
  * public APIs deserve a contactable caller. Still calls globalThis.fetch
  * so tests can stub it.
  */

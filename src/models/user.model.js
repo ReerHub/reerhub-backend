@@ -26,6 +26,14 @@ const profileSchema = new mongoose.Schema(
       enum: ['onsite', 'hybrid', 'remote', 'unknown'],
       default: 'unknown',
     },
+    targetLocations: { type: [String], default: [] },
+    availability: {
+      type: String,
+      enum: ['actively-looking', 'open', 'not-looking'],
+      default: 'open',
+    },
+    education: { type: String, trim: true, maxlength: 240 },
+    experienceSummary: { type: String, trim: true, maxlength: 2000 },
   },
   { _id: false }
 );
@@ -55,6 +63,15 @@ const userSchema = new mongoose.Schema(
     failedLoginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },
     profile: { type: profileSchema, default: {} },
+    notificationPreferences: {
+      digest: {
+        type: String,
+        enum: ['daily', 'weekdays', 'weekly', 'paused'],
+        default: 'daily',
+      },
+      instantAlerts: { type: Boolean, default: false },
+      lastDigestAt: { type: Date },
+    },
   },
   { timestamps: true }
 );

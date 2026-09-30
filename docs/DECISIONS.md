@@ -4,7 +4,7 @@ Durable choices. One entry each: date, decision, reason, consequences. Don't rel
 
 ## ADR-001 — Modular monolith (2026-09-16)
 
-Express API + BullMQ worker in one process (`server.js`), not microservices. Reason: 5 companies don't justify distributed ops. Consequence: keep module boundaries clean for a later split.
+Express API with a MongoDB-backed in-process scheduler (`server.js`), not microservices. Reason: early-stage scale does not justify a separate queue service. Consequence: run one API instance and keep module boundaries clean for a later split.
 
 ## ADR-002 — Deterministic adapters before AI (2026-09-16)
 
@@ -24,7 +24,7 @@ Render auto-deploys `main`; no staging env. Reason: small team, double cost othe
 
 ## ADR-006 — Cookie sessions (2026-09-18)
 
-httpOnly `accessToken` 15m + rotating Redis-bound `refreshToken` 7d; `Secure; SameSite=None` in prod; silent refresh-once-and-retry client-side. Reason: XSS-safe with instant revocation. Consequence: CORS `credentials:true`; JWT secrets fail-fast.
+httpOnly `accessToken` 15m + rotating MongoDB-backed `refreshToken` 7d; `Secure; SameSite=None` in prod; silent refresh-once-and-retry client-side. Reason: XSS-safe with instant revocation and no cache service. Consequence: CORS `credentials:true`; JWT secrets fail-fast.
 
 ## ADR-007 — Google via GIS idToken verify (2026-09-18)
 
@@ -32,8 +32,8 @@ No NextAuth/session lib; backend verifies with `google-auth-library`, links by `
 
 ## ADR-008 — Resend SMTP, single-use token links (2026-09-18)
 
-`nodemailer` + `SMTP_*`, Redis `verify|reset:<sha256>` (24h/1h), forgot always 200, dev log-only. Reason: provider-agnostic, no SDK, no enumeration.
+`nodemailer` + `SMTP_*`, MongoDB TTL-backed `verify|reset:<sha256>` (24h/1h), forgot always 200, dev log-only. Reason: provider-agnostic, no SDK, no enumeration.
 
 ## ADR-009 — Staging promotion flow (2026-09-19, supersedes ADR-005)
 
-Branches merge to `develop` (auto-deploys staging: `staging-api.reerhub.com`); after verification, `develop` merges to `main` (auto-deploys prod). Reason: PRs need a live proving ground before reaching users; free tier can't offer more. Consequence: staging shares the dev MongoDB and one Redis plan (isolated via `QUEUE_NAME`); staging env mirrors prod secrets; cookie `Domain=.reerhub.com` roams across staging (accepted).
+Branches merge to `develop` (auto-deploys staging: `staging-api.reerhub.com`); after verification, `develop` merges to `main` (auto-deploys prod). Reason: PRs need a live proving ground before reaching users; free tier can't offer more. Consequence: staging uses its own MongoDB database and scheduler; staging env mirrors prod secrets; cookie `Domain=.reerhub.com` roams across staging (accepted).

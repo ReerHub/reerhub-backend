@@ -167,7 +167,7 @@ export const refresh = TryCatch(async (req, res) => {
   }
 
   // Rotate: revoke the used refresh token, issue a fresh pair.
-  // Deleted accounts cannot refresh (orphaned Redis entries die on TTL).
+  // Deleted accounts cannot refresh because their MongoDB token is removed.
   const owner = await User.findById(payload.sub).select('_id');
   if (!owner) {
     await revokeRefreshToken(payload.jti);

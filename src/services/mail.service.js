@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 
 import nodemailer from 'nodemailer';
 
-import { getRedisClient } from '../config/redis.js';
+import AuthToken from '../models/authToken.model.js';
 
 const VERIFY_TTL_SECONDS = 24 * 60 * 60;
 const RESET_TTL_SECONDS = 60 * 60;
@@ -28,39 +28,38 @@ const getTransporter = () => {
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 const storeToken = async (prefix, token, userId, ttlSeconds) => {
-  const redis = getRedisClient();
-  await redis.set(`${prefix}:${hashToken(token)}`, String(userId), 'EX', ttlSeconds);
+  await AuthToken.deleteMany({ userId, type: prefix, usedAt: { $exists: false } });
+  await AuthToken.create({
+    userId,
+    type: prefix,
+    tokenHash: hashToken(token),
+    expiresAt: new Date(Date.now() + ttlSeconds * 1000),
+  });
 };
 
 const consumeToken = async (prefix, token) => {
-  const key = `${prefix}:${hashToken(token)}`;
-  try {
-    const redis = getRedisClient();
-    const userId = await redis.get(key);
-    if (userId) await redis.del(key);
-    return userId;
-  } catch {
-    return null;
-  }
+  const record = await AuthToken.findOneAndUpdate(
+    {
+      type: prefix,
+      tokenHash: hashToken(token),
+      usedAt: { $exists: false },
+      expiresAt: { $gt: new Date() },
+    },
+    { $set: { usedAt: new Date() } },
+    { returnDocument: 'after' }
+  );
+  return record ? String(record.userId) : null;
 };
 
 export const issueVerifyToken = async (userId) => {
   const token = crypto.randomBytes(32).toString('hex');
-  try {
-    await storeToken('verify', token, userId, VERIFY_TTL_SECONDS);
-  } catch {
-    // Redis down — email links cannot be validated; caller still continues.
-  }
+  await storeToken('verify', token, userId, VERIFY_TTL_SECONDS);
   return token;
 };
 
 export const issueResetToken = async (userId) => {
   const token = crypto.randomBytes(32).toString('hex');
-  try {
-    await storeToken('reset', token, userId, RESET_TTL_SECONDS);
-  } catch {
-    // Best effort.
-  }
+  await storeToken('reset', token, userId, RESET_TTL_SECONDS);
   return token;
 };
 
@@ -69,11 +68,7 @@ export const consumeResetToken = (token) => consumeToken('reset', token);
 
 export const issueMagicToken = async (userId) => {
   const token = crypto.randomBytes(32).toString('hex');
-  try {
-    await storeToken('magic', token, userId, MAGIC_TTL_SECONDS);
-  } catch {
-    // Redis down — magic links cannot be validated; caller still continues.
-  }
+  await storeToken('magic', token, userId, MAGIC_TTL_SECONDS);
   return token;
 };
 
@@ -121,5 +116,19 @@ export const sendMagicEmail = async ({ to, token }) => {
     to,
     subject: 'Sign in to ReerHub',
     html: `<p>Sign in to ReerHub:</p><p><a href="${url}">${url}</a></p><p>This link expires in 15 minutes and can be used once. If you did not request it, ignore this email.</p>`,
+  });
+};
+
+export const sendMatchDigest = async ({ to, name, recommendations }) => {
+  const rows = recommendations
+    .map(
+      ({ job, fit }) =>
+        `<li><strong>${job.title}</strong> at ${job.companyId?.name || 'a company'} — ${fit.score}% fit<br/><small>${fit.reasons.join(' · ')}</small><br/><a href="${frontendUrl()}/jobs/${job._id}">View role</a></li>`
+    )
+    .join('');
+  return sendMail({
+    to,
+    subject: `Your ReerHub matches: ${recommendations.length} fresh roles`,
+    html: `<p>Hi ${name}, here are your highest-fit official tech roles today.</p><ol>${rows}</ol><p><a href="${frontendUrl()}/dashboard">See all matches</a> · <a href="${frontendUrl()}/profile">Manage alerts</a></p>`,
   });
 };
