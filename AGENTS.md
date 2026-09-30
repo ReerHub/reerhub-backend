@@ -1,6 +1,6 @@
 # AGENTS.md — reerhub-backend guide (for AI agents)
 
-Read this first, then `docs/01-product.md`, then `docs/DECISIONS.md`.
+Read this first, then `docs/DECISIONS.md`.
 
 ## What this repo is
 
@@ -17,7 +17,7 @@ This repo is **self-contained**: product context, architecture, decisions, chang
 ## Conventions
 
 - Handlers: `TryCatch(async (req, res) => …)` + `throw new ApiError(status, msg)`; body validation via `validate(zodSchema)` → `req.validated`.
-- Auth = httpOnly cookies (`accessToken` 15m + rotating `refreshToken` 7d backed by MongoDB TTL records); `requireAuth` (cookie → `Bearer` fallback); all mutations need double-submit CSRF (`GET /auth/csrf` → `x-csrf-token` header); auth routes rate-limited 20/15m under a 200/15m global limiter; login locks 5 fails → 15 min.
+- Auth = passwordless magic link + Google (`POST /auth/magic-link` → `GET /auth/verify-magic`, 15-min single-use MongoDB tokens); legacy password routes return 410. Sessions are httpOnly cookies (`accessToken` 15m + rotating `refreshToken` 7d backed by MongoDB TTL records); `requireAuth` (cookie → `Bearer` fallback); all mutations need double-submit CSRF (`GET /auth/csrf` → `x-csrf-token` header); auth routes rate-limited 20/15m under a 200/15m global limiter; login locks 5 fails → 15 min.
 - Write endpoints (companies/sources/sync) additionally need `x-api-key`.
 - Models are Mongoose with `timestamps`; indexes live in the schemas — never query without checking them.
 - Scheduler: MongoDB-claimed in-process work, staggered 02:00–05:00 UTC; only one backend instance may run it. Failed source syncs preserve existing jobs.
@@ -27,8 +27,10 @@ This repo is **self-contained**: product context, architecture, decisions, chang
 
 ## Gotchas
 
+- Pro billing: `BILLING_PLANS` catalog in `src/services/razorpay.service.js` (`pro-weekly/monthly/quarterly`, `TRIAL_DAYS = 7`); checkout takes `{ planId }` (zod-validated, monthly default); webhook status mapping is plan-agnostic. Recommendations: profile-scored matches + feedback in `src/services/matching.service.js`.
 - `src/config/env.js` fail-fasts in production (`MONGO_URI`, `API_KEY`, `JWT_*`, `GOOGLE_CLIENT_ID`, `SMTP_*`; `MONGO_DB_NAME` must be prod-like). Do **not** set `PORT` on Render.
 - The global rate limiter is per server process — `npm test` instances have their own; don't "verify" against a dev server right after running the suite (15-min window).
+- `NODE_ENV=test` **forces** `MONGO_DB_NAME=reerhub-test` (overrides `.env`) — tests can never touch dev/prod data, by construction.
 - Company logos are seeded favicon URLs in `companies.logoUrl` — never hotlink Clearbit.
 - `role: admin` exists on User but has no endpoints yet — don't treat it as functional.
 

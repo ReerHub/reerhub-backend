@@ -1,5 +1,29 @@
 # Changelog (backend)
 
+## Unreleased — Pro billing plans + 7-day trial
+
+- `BILLING_PLANS` catalog (`pro-weekly/monthly/quarterly`, ~2yr horizons); `POST /billing/checkout { planId }` (zod-validated, monthly default); trial 14d → 7d (`TRIAL_DAYS`); webhook plan-agnostic; `pro-monthly` id grandfathered with legacy plan-ID fallback. 5 new `billing` tests.
+
+## Unreleased — Node 24 + latest deps
+
+- `.nvmrc`/`engines`/CI/shell default all Node 24 (latest LTS); dotenv 18, mongoose 9.10.3, nodemailer 10.0.13, eslint 10.11, prettier 3.9.9. 46/46 tests green.
+
+## Unreleased — Test database forced
+
+- `NODE_ENV=test` now overwrites `MONGO_DB_NAME` with `reerhub-test` (was default-if-unset, which silently tested against dev data from `.env`).
+
+## Unreleased — Passwordless-only auth
+
+- Magic-link request/verify (15-min single-use MongoDB tokens) + Google login; legacy password routes return 410 Gone. Teaser gating: anonymous `/jobs` gets excerpts + 10-preview cap; members get full roles.
+
+## Unreleased — Recommendations engine
+
+- Profile-scored matches with fit reasons (`GET /recommendations`), feedback loop (`PATCH /:jobId/feedback`), daily digest service honoring notification preferences.
+
+## Unreleased — Redis/BullMQ removed
+
+- Queue, Redis client, and workers deleted; MongoDB-claimed in-process scheduler (`scheduler.service.js`) + MongoDB TTL auth tokens. Health check is Mongo-only; `sync.yml` remains the external trigger.
+
 ## Unreleased — Docs gaps + CI notes
 
 - CORS preflight now allows `x-csrf-token` (was blocking every browser mutation with zero backend logs).

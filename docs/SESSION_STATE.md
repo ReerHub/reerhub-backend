@@ -1,43 +1,35 @@
 # Session state — backend (handoff)
 
-_Last updated: 2026-09-19. Branch: `develop` (clean, matches `origin/develop`).
-Remote has only `develop` + `main`. Next session: start here, then branch off `develop`._
+_Last updated: 2026-09-30. Branch: `feat/node24-billing-plans` (cut from `develop`; pushed, PR to `develop` pending). Next session: verify PR/staging, then continue on new feature branches — never commit to `develop` directly._
 
 ## Where we are
 
-All work below is merged into `develop` (up to #16). `main` deploys to Render prod (`api.reerhub.com`); `develop` deploys to staging (`staging-api.reerhub.com`). Flow: feature branch → PR to `develop` → verify on staging → PR to `main`.
+`develop` deploys to staging (`staging-api.reerhub.com`); `main` to prod (`api.reerhub.com`). Flow: feature branch → PR to `develop` → verify on staging → PR to `main`.
 
-## Completed (this cycle)
+## Completed (this cycle, on branch)
 
-- **Deploy fix + root probe**: `MONGO_DB_NAME` prod guard, `GET /` health probe for Render.
-- **Phase-2 auth**: email+password + Google GIS login, httpOnly cookies (15m access + 7d rotating refresh in Redis), Resend verify/reset, profiles, saved jobs, 9-track classifier intact.
-- **Hardening**: data rights (delete/export/change-password), login lockout (5→15min), double-submit CSRF (+ `x-csrf-token` in CORS preflight), deep `/health` (db/redis), request IDs, prod log format, crash handlers, ISC license, Dependabot (minors grouped, majors ignored), audit gates, SECURITY.md, local pre-commit secret scan.
-- **Cross-domain sessions**: `Domain=.reerhub.com` cookies in prod (middleware-visible), logout clears legacy host-only too; `trust proxy: 1` for per-user rate limits.
-- **Scheduler self-heal**: prunes stale `daily-*` repeats; worker skips deleted sources quietly.
-- **Infra for free tier**: `QUEUE_NAME` override (prod `reerhub-sync`, staging `reerhub-sync-staging`) so one Upstash DB is safely shared; staging uses dev MongoDB.
-- **Search**: multi-value filters, global `sort=updated|az`, Turnstile on signup/login/forgot, public verify-email resend, 5/hr forgot cap.
-- **Tests**: 9 files, 36 tests green (`npm test`); eslint clean; `npm audit` 0 vulns.
-- **Skills**: `.agents/skills/` = find-skills, mongodb-query-optimizer, code-review (+ `skills.json` manifest).
+- **Pro billing plans**: `BILLING_PLANS` catalog (weekly ₹49 / monthly ₹150 / quarterly ₹299), `{ planId }` checkout validation, 7-day trial (`TRIAL_DAYS`), 5 billing tests. Needs 3 Razorpay plan IDs in env (dashboard step, still pending).
+- **Node 24 baseline**: `.nvmrc`/`engines`/CI/shell default all 24; dotenv 18 + latest minor/patch; frontend holds TS@6/eslint@9 (upstream gaps, see frontend AGENTS.md).
+- **Test isolation fix**: `NODE_ENV=test` forces `reerhub-test` (was silently testing dev data via `.env`).
+- **Mongoose 9**: `new: true` → `returnDocument: 'after'` (killed 7 boot warnings).
+- **Earlier (already in tree)**: Redis/BullMQ removed (MongoDB scheduler + TTL tokens); passwordless-only auth (passwords 410); recommendations engine + digests; teaser gating; source health endpoint.
 
-## Prod status / pending user actions
+## Current verification
 
-- Prod DB was found EMPTY; user will **delete the prod database entirely and redeploy fresh** (no data worth keeping). After that: `MONGO_DB_NAME=reerhub-prod npm run seed` + trigger all 5 source syncs + verify (`smoke.js` 8/8, incl. the Malaysia probe).
-- Do NOT write the backfill below to prod — it runs on **dev only**.
+- `npm test`: 46/46 green. `npx eslint src/ test/`: clean. `npm audit`: 0 vulns. Boot: zero warnings, `/health` ok.
+- 5 seeded companies sync green (Enterpret 5, Razorpay 5, CRED 1, Meesho 12, Freshworks 44 new jobs on last run).
 
-## Planned next (approved, not started)
+## Pending user actions
 
-1. **Malaysia/India bug** (`src/services/roleClassifier.service.js`): add `malaysia`, `kuala lumpur` to `NON_INDIA_MARKERS` + regression tests. Root cause: ATS sends city-only "Malaysia", normalizer defaults country to India, marker list lacks Malaysia.
-2. **Escaped-HTML bug** (`src/adapters/greenhouse.adapter.js`): Greenhouse returns pre-escaped HTML (`&lt;div…`); decode entities (via `he`) + test. Affects Razorpay + Enterpret descriptions.
-3. **Backfill script** (new `src/scripts/backfillGeo.js`, dry-run default): decode `&lt;`-prefixed descriptions, re-tag `isIndiaRole`, repair `country: India` on known-foreign cities. Run on dev, verify counts.
-4. **Passwordless login**: new `POST /auth/magic-link` + `GET /auth/verify-magic?token=` (15-min single-use Redis tokens, Turnstile + 5/hr cap, auto-verifies email); deprecate signup/login/forgot/reset-password routes (410, remove next release); keep `passwordHash` dormant. Anon teaser stripping: `GET /jobs` + `/jobs/:id` return `excerpt` (~160 chars) and omit `description`/`skills`/`applicationUrl` without session.
-5. Company-grid `indiaOnly` audit (ensure US roles can't leak onto company pages).
+- Create 3 Razorpay plans (weekly/monthly/quarterly) + set `RAZORPAY_PRO_*_PLAN_ID` in `.env` and prod/staging envs; until then checkout 503s by design.
+- Pin Node 24 in the Render dashboard (`NODE_VERSION=24`).
+- Prod DB was found EMPTY earlier; after PR merge: seed prod + sync all 5 sources + `smoke.js` 8/8.
 
 ## Resume checklist
 
 ```bash
-git checkout develop && git pull --rebase origin develop
-git checkout -b be/<topic>
-npm test && npx eslint src/ test/
+git checkout feat/node24-billing-plans && git pull --rebase origin feat/node24-billing-plans
+nvm use 24 && npm test && npx eslint src/ test/
 ```
 
-Docs rule: `docs/` stays at DECISIONS + CHANGELOG + deployment. No new doc files without a triggering requirement.
+Docs rule: `docs/` stays at DECISIONS + CHANGELOG + deployment (+ this handoff). No new doc files without a triggering requirement.

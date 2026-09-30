@@ -1,9 +1,10 @@
 # 06 — Deployment (Render)
 
-- Service auto-deploys `main` at `https://api.reerhub.com`. No staging (ADR-005). Build: `npm ci` (+ `npm audit --audit-level=high` in CI) → lint → tests; start `node src/server.js`; liveness `GET /` + `GET /api/v1/health` (Render health-check path may be either).
+- Service auto-deploys `main` at `https://api.reerhub.com` (staging: `develop` → `staging-api.reerhub.com`, ADR-009). Build: `npm ci` (+ `npm audit --audit-level=high` in CI) → lint → tests; start `node src/server.js`; liveness `GET /` + `GET /api/v1/health` (Mongo check). Dashboard must pin **Node 24** (`NODE_VERSION=24`; repo `.nvmrc` is for nvm only).
 - **Environment** (dashboard → Environment; save auto-redeploys):
   ```dotenv
   NODE_ENV=production
+  NODE_VERSION=24
   MONGO_URI=mongodb+srv://<user>:<pass>@<cluster>/?retryWrites=true&w=majority
   MONGO_DB_NAME=reerhub-prod
   API_KEY=<openssl rand -hex 32>
@@ -20,6 +21,13 @@
   SMTP_PASS=<resend key>
   SMTP_FROM=ReerHub <noreply@reerhub.com>
   FRONTEND_URL=https://www.reerhub.com
+  TURNSTILE_SECRET_KEY=xxxx
+  RAZORPAY_KEY_ID=rzp_live_xxx
+  RAZORPAY_KEY_SECRET=xxx
+  RAZORPAY_PRO_WEEKLY_PLAN_ID=plan_xxx
+  RAZORPAY_PRO_MONTHLY_PLAN_ID=plan_xxx
+  RAZORPAY_PRO_QUARTERLY_PLAN_ID=plan_xxx
+  RAZORPAY_WEBHOOK_SECRET=xxx
   ```
 - Atlas Network Access must allow Render egress (`0.0.0.0/0` pragmatic default); confirm continuous backups/PITR on the prod cluster.
 - First-time data: `MONGO_URI=<atlas> MONGO_DB_NAME=reerhub-prod npm run seed`, then per-source `POST /job-sources/:id/sync` with `x-api-key`, then `SMOKE_API_BASE=https://api.reerhub.com/api/v1 node src/scripts/smoke.js` (8 checks).
@@ -34,5 +42,5 @@
   CORS_FRONTEND_URL=https://staging.reerhub.com
   FRONTEND_URL=https://staging.reerhub.com
   ```
-- Uses its own MongoDB database and in-process scheduler. JWT/SMTP/Google secrets mirror prod.
-- Verify: `SMOKE_API_BASE=https://staging-api.reerhub.com/api/v1 node src/scripts/smoke.js` + throwaway-account auth flow (signup → verify → save → delete).
+- Uses its own MongoDB database and in-process scheduler. JWT/SMTP/Google secrets mirror prod. Razorpay may use test keys + test plan IDs on staging (webhook secret must match the dashboard in use).
+- Verify: `SMOKE_API_BASE=https://staging-api.reerhub.com/api/v1 node src/scripts/smoke.js` + throwaway-account auth flow (magic-link → save → delete).
