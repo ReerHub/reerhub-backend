@@ -28,13 +28,45 @@ const parsePositiveInteger = (value, fallback, maximum) => {
   return Math.min(parsed, maximum);
 };
 
+// Anonymous teaser: full discovery (title/company/chips/location/date)
+// stays public, but description/skills/Apply collapse to a ~160-char
+// excerpt until sign-in. Crawlers see the same view (no cloaking).
+const EXCERPT_LENGTH = 160;
+const toExcerpt = (description) =>
+  String(description || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, EXCERPT_LENGTH);
+
+const toTeaserJob = (job) => {
+  const teaser = { ...job, excerpt: toExcerpt(job.description) };
+  delete teaser.description;
+  delete teaser.skills;
+  delete teaser.applicationUrl;
+  return teaser;
+};
+
+const shapeJobs = (req, jobs) => (req.user ? jobs : jobs.map(toTeaserJob));
+
 export const listJobs = TryCatch(async (req, res) => {
   const page = parsePositiveInteger(req.query.page, 1, 1000);
-  const limit = parsePositiveInteger(req.query.limit, 20, 100);
+  const requestedLimit = parsePositiveInteger(req.query.limit, 20, 100);
+  // Public discovery remains useful for SEO, but anonymous readers get a
+  // finite preview. A signed-in account unlocks the complete, official role.
+  const limit = req.user ? requestedLimit : Math.min(requestedLimit, 10);
   const status = ['active', 'closed'].includes(req.query.status)
     ? req.query.status
     : 'active';
   const filter = { status };
+
+  if (!req.user && page > 1) {
+    return res.status(200).json({
+      success: true,
+      data: [],
+      pagination: { page, limit: 10, total: 10, totalPages: 1 },
+    });
+  }
 
   if (req.query.companyId) {
     if (!mongoose.isValidObjectId(req.query.companyId)) {
@@ -125,10 +157,16 @@ export const listJobs = TryCatch(async (req, res) => {
         .lean();
       if (textMatches.length > 0) {
         const total = await Job.countDocuments({ ...filter, $text: { $search: query } });
+        const visibleTotal = req.user ? total : Math.min(total, 10);
         return res.status(200).json({
           success: true,
-          data: textMatches,
-          pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+          data: shapeJobs(req, textMatches),
+          pagination: {
+            page,
+            limit,
+            total: visibleTotal,
+            totalPages: req.user ? Math.ceil(total / limit) : 1,
+          },
         });
       }
       const search = new RegExp(escapeRegex(query), 'i');
@@ -152,10 +190,16 @@ export const listJobs = TryCatch(async (req, res) => {
     Job.countDocuments(filter),
   ]);
 
+  const visibleTotal = req.user ? total : Math.min(total, 10);
   res.status(200).json({
     success: true,
-    data: jobs,
-    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    data: shapeJobs(req, jobs),
+    pagination: {
+      page,
+      limit,
+      total: visibleTotal,
+      totalPages: req.user ? Math.ceil(total / limit) : 1,
+    },
   });
 });
 
@@ -172,5 +216,5 @@ export const getJobById = TryCatch(async (req, res) => {
 
   if (!job) throw new ApiError(404, 'Job not found');
 
-  res.status(200).json({ success: true, data: job });
+  res.status(200).json({ success: true, data: req.user ? job : toTeaserJob(job) });
 });

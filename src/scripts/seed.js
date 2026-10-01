@@ -106,7 +106,7 @@ const seed = async () => {
           isActive: true,
         },
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     console.log(`- company: ${company.slug} (${company._id})`);
 

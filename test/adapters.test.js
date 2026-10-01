@@ -93,6 +93,38 @@ test('greenhouse adapter maps job to common shape', async () => {
   }
 });
 
+test('greenhouse adapter decodes pre-escaped HTML entities', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      jobs: [
+        {
+          id: 1001,
+          title: 'Backend Engineer',
+          content: '&lt;div&gt;&lt;p&gt;Build APIs&lt;/p&gt;&lt;/div&gt;',
+          location: { name: 'Bengaluru' },
+          departments: [{ name: 'Engineering' }],
+          absolute_url: 'https://job-boards.greenhouse.io/x/jobs/1001',
+          updated_at: '2026-09-01T00:00:00Z',
+        },
+      ],
+    }),
+  });
+
+  try {
+    const jobs = await fetchGreenhouseJobs({
+      name: 'Razorpay',
+      config: { boardToken: 'x' },
+    });
+    assert.equal(jobs.length, 1);
+    assert.ok(!jobs[0].description.includes('&lt;'));
+    assert.ok(jobs[0].description.includes('<div>'));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('smartrecruiters adapter requires company', async () => {
   await assert.rejects(
     fetchSmartRecruitersJobs({ name: 'x', config: {} }),

@@ -25,7 +25,7 @@ const check = async (name, url, expect) => {
     console.error(`✗ ${name} — invalid JSON`);
     return false;
   }
-  const body = expect(json);
+  const body = await expect(json);
   if (!body) {
     console.error(`✗ ${name} — unexpected shape`);
     return false;
@@ -61,14 +61,17 @@ const run = async () => {
 
   results.push(
     await check(
-      'GET /jobs/:id',
+      'GET /jobs/:id (anon teaser)',
       `${API_BASE}/jobs/${jobId ?? '000000000000000000000000'}`,
       (json) => {
         const title = json.data?.title;
         if (!title) return null;
-        const skills = (json.data?.skills || []).length;
-        const hasDesc = Boolean(json.data?.description);
-        return `${title} | ${skills} skills | ${hasDesc ? 'description ✓' : 'description ✗'}`;
+        // Anonymous readers get teasers: excerpt in, gated fields out.
+        if (!json.data?.excerpt) return null;
+        if ('description' in (json.data || {})) return null;
+        if ('skills' in (json.data || {})) return null;
+        if ('applicationUrl' in (json.data || {})) return null;
+        return `${title} | teaser ✓`;
       }
     )
   );
@@ -127,6 +130,35 @@ const run = async () => {
         return typeof total === 'number' ? `${total} roles tagged aws` : null;
       }
     )
+  );
+
+  // Geo regression probe: ATS city-only "Malaysia"/"Kuala Lumpur" rows must
+  // stay tagged non-India and never leak into the default India listing.
+  // Single 100-row page covers the current board scale; revisit past ~100.
+  results.push(
+    await check('Malaysia geo probe', `${API_BASE}/jobs?limit=100`, async (json) => {
+      const def = Array.isArray(json.data) ? json.data : null;
+      if (!def) return null;
+      let allRes;
+      try {
+        allRes = await fetch(`${API_BASE}/jobs?limit=100&indiaOnly=false`);
+      } catch {
+        return null;
+      }
+      if (!allRes.ok) return null;
+      const all = await allRes.json().catch(() => null);
+      if (!all || !Array.isArray(all.data)) return null;
+      const isMalaysian = (job) =>
+        (job.locations || []).some((loc) =>
+          /malaysia|kuala lumpur/i.test(
+            `${loc.city || ''} ${loc.state || ''} ${loc.country || ''}`
+          )
+        );
+      const malaysian = all.data.filter(isMalaysian);
+      if (malaysian.some((job) => job.isIndiaRole !== false)) return null;
+      if (def.some(isMalaysian)) return null;
+      return `${malaysian.length} Malaysia rows all non-India, 0 leak`;
+    })
   );
 
   const failures = results.filter((ok) => !ok).length;

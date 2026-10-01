@@ -37,6 +37,7 @@ const COUNTRY_NAMES = {
   ca: 'Canada',
   au: 'Australia',
   sg: 'Singapore',
+  my: 'Malaysia',
   ae: 'United Arab Emirates',
   qa: 'Qatar',
   sa: 'Saudi Arabia',

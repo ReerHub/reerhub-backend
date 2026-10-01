@@ -11,6 +11,7 @@
     "seed:prod": "MONGO_DB_NAME=reerhub-prod node src/scripts/seed.js",
     "sync:source": "node src/scripts/syncSource.js",
     "backfill": "node src/scripts/backfillCategories.js",
+    "backfill:geo": "node src/scripts/backfillGeo.js",
     "test": "NODE_ENV=test node --test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -21,26 +22,25 @@
   "author": "",
   "license": "ISC",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "description": "ReerHub API and data-ingestion foundation.",
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "bullmq": "^6.3.8",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.5",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
     "google-auth-library": "^11.1.0",
+    "he": "^1.2.0",
     "helmet": "^8.3.0",
     "hpp": "^0.2.3",
-    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "mongo-sanitize": "^1.1.0",
-    "mongoose": "^9.10.1",
+    "mongoose": "^9.10.3",
     "morgan": "^1.12.1",
-    "nodemailer": "^10.0.10",
+    "nodemailer": "^10.0.13",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -48,9 +48,9 @@
     "eslint": "^10.11.0",
     "globals": "^17.12.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.5.1",
+    "lint-staged": "^17.6.0",
     "nodemon": "^3.1.14",
-    "prettier": "^3.9.8"
+    "prettier": "^3.9.9"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
