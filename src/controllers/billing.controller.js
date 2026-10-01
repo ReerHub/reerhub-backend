@@ -24,12 +24,10 @@ export const getBilling = TryCatch(async (req, res) => {
 export const startCheckout = TryCatch(async (req, res) => {
   const existing = await Subscription.findOne({ userId: req.user._id });
   if (['active', 'trialing'].includes(existing?.status))
-    return res
-      .status(200)
-      .json({
-        success: true,
-        data: { subscription: present(existing), checkoutUrl: null },
-      });
+    return res.status(200).json({
+      success: true,
+      data: { subscription: present(existing), checkoutUrl: null },
+    });
   const planId = req.validated?.planId || 'pro-monthly';
   let remote;
   try {
@@ -50,15 +48,13 @@ export const startCheckout = TryCatch(async (req, res) => {
     },
     { upsert: true, returnDocument: 'after' }
   );
-  res
-    .status(201)
-    .json({
-      success: true,
-      data: {
-        subscription: present(subscription),
-        checkoutUrl: remote.short_url || null,
-      },
-    });
+  res.status(201).json({
+    success: true,
+    data: {
+      subscription: present(subscription),
+      checkoutUrl: remote.short_url || null,
+    },
+  });
 });
 export const cancelSubscription = TryCatch(async (req, res) => {
   const subscription = await Subscription.findOne({ userId: req.user._id });
@@ -78,7 +74,12 @@ export const razorpayWebhook = async (req, res, next) => {
     if (!verifyRazorpayWebhook(req.body, req.headers['x-razorpay-signature']))
       throw new ApiError(400, 'Invalid webhook signature');
     const event = req.headers['x-razorpay-event'];
-    const payload = JSON.parse(req.body.toString('utf8'));
+    let payload;
+    try {
+      payload = JSON.parse(req.body.toString('utf8'));
+    } catch {
+      throw new ApiError(400, 'Invalid webhook payload');
+    }
     const entity = payload?.payload?.subscription?.entity;
     if (!entity?.id) return res.status(200).json({ success: true });
     const statuses = {

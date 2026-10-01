@@ -41,7 +41,7 @@ Local `.env` points at the shared Atlas dev DB (`reerhub-dev`): reads are safe, 
 npm run dev | npm start | npm test | npx eslint src/ test/
 npm run seed / seed:dev / seed:prod   # idempotent company/source seed (+logoUrl)
 npm run sync:source freshworks        # inline source sync
-node src/scripts/smoke.js             # 8 end-to-end checks (SMOKE_API_BASE=… for prod)
+node src/scripts/smoke.js             # 9 end-to-end checks (SMOKE_API_BASE=… for prod)
 ```
 
 ## Skills (`.agents/skills/`)

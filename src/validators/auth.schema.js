@@ -82,7 +82,6 @@ export const updateMeSchema = z
     notificationPreferences: z
       .object({
         digest: z.enum(['daily', 'weekdays', 'weekly', 'paused']).optional(),
-        instantAlerts: z.boolean().optional(),
       })
       .optional(),
   })

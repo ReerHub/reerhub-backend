@@ -69,7 +69,6 @@ const userSchema = new mongoose.Schema(
         enum: ['daily', 'weekdays', 'weekly', 'paused'],
         default: 'daily',
       },
-      instantAlerts: { type: Boolean, default: false },
       lastDigestAt: { type: Date },
     },
   },

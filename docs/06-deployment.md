@@ -30,7 +30,7 @@
   RAZORPAY_WEBHOOK_SECRET=xxx
   ```
 - Atlas Network Access must allow Render egress (`0.0.0.0/0` pragmatic default); confirm continuous backups/PITR on the prod cluster.
-- First-time data: `MONGO_URI=<atlas> MONGO_DB_NAME=reerhub-prod npm run seed`, then per-source `POST /job-sources/:id/sync` with `x-api-key`, then `SMOKE_API_BASE=https://api.reerhub.com/api/v1 node src/scripts/smoke.js` (8 checks).
+- First-time data: `MONGO_URI=<atlas> MONGO_DB_NAME=reerhub-prod npm run seed`, then per-source `POST /job-sources/:id/sync` with `x-api-key`, then `SMOKE_API_BASE=https://api.reerhub.com/api/v1 node src/scripts/smoke.js` (9 checks).
 - The in-process scheduler requires one always-running backend instance. It persists source due times and claims in MongoDB, so short restarts resume due work after recovery.
 - Rollback: Render → Deploys → Redeploy last good; or `git revert` on `main`.
 
