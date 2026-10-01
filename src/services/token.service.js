@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 
 import jwt from 'jsonwebtoken';
 
-import { getRedisClient } from '../config/redis.js';
+import AuthToken from '../models/authToken.model.js';
 
 const ACCESS_TTL = process.env.JWT_ACCESS_TTL || '15m';
 const REFRESH_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -21,12 +21,12 @@ export const signRefreshToken = async (userId) => {
   const token = jwt.sign({ sub: String(userId), type: 'refresh', jti }, refreshSecret(), {
     expiresIn: `${REFRESH_TTL_SECONDS}s`,
   });
-  try {
-    const redis = getRedisClient();
-    await redis.set(`refresh:${jti}`, String(userId), 'EX', REFRESH_TTL_SECONDS);
-  } catch {
-    // Redis unavailable in some dev/test flows — token still usable until restart.
-  }
+  await AuthToken.create({
+    userId,
+    type: 'refresh',
+    tokenHash: crypto.createHash('sha256').update(jti).digest('hex'),
+    expiresAt: new Date(Date.now() + REFRESH_TTL_SECONDS * 1000),
+  });
   return { token, jti };
 };
 
@@ -39,26 +39,22 @@ export const verifyRefreshToken = async (token) => {
   if (payload?.type !== 'refresh' || !payload?.jti) {
     throw new Error('Invalid refresh token');
   }
-  try {
-    const redis = getRedisClient();
-    const stored = await redis.get(`refresh:${payload.jti}`);
-    if (!stored || stored !== String(payload.sub)) {
-      throw new Error('Refresh token revoked');
-    }
-  } catch (error) {
-    if (error?.message === 'Refresh token revoked') throw error;
-    // If Redis is down, fall back to stateless verification.
-  }
+  const record = await AuthToken.findOne({
+    userId: payload.sub,
+    type: 'refresh',
+    tokenHash: crypto.createHash('sha256').update(payload.jti).digest('hex'),
+    usedAt: { $exists: false },
+    expiresAt: { $gt: new Date() },
+  }).select('_id');
+  if (!record) throw new Error('Refresh token revoked');
   return payload;
 };
 
 export const revokeRefreshToken = async (jti) => {
-  try {
-    const redis = getRedisClient();
-    await redis.del(`refresh:${jti}`);
-  } catch {
-    // Best effort.
-  }
+  await AuthToken.updateOne(
+    { type: 'refresh', tokenHash: crypto.createHash('sha256').update(jti).digest('hex') },
+    { $set: { usedAt: new Date() } }
+  );
 };
 
 const isProduction = () => process.env.NODE_ENV === 'production';

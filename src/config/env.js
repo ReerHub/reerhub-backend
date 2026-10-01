@@ -3,7 +3,7 @@ dotenv.config();
 
 // Fail fast on missing config instead of cryptic runtime errors.
 // Dev and prod MUST use different databases (see MONGO_DB_NAME below).
-const requiredInProduction = ['MONGO_URI', 'REDIS_URL'];
+const requiredInProduction = ['MONGO_URI'];
 if (process.env.NODE_ENV === 'production') {
   const missing = requiredInProduction.filter((key) => !process.env[key]);
   if (missing.length > 0) {
@@ -45,7 +45,9 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// Safety: never let tests run against dev/prod data.
-if (process.env.NODE_ENV === 'test' && !process.env.MONGO_DB_NAME) {
+// Safety: tests ALWAYS run against the isolated test DB, even when .env
+// sets MONGO_DB_NAME for dev (dotenv never overrides a real env value,
+// so default-if-unset was silently testing against dev data).
+if (process.env.NODE_ENV === 'test') {
   process.env.MONGO_DB_NAME = 'reerhub-test';
 }

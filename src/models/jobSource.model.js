@@ -19,6 +19,8 @@ const jobSourceSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     lastSuccessfulSyncAt: { type: Date },
     lastAttemptedSyncAt: { type: Date },
+    nextScheduledSyncAt: { type: Date, index: true },
+    syncClaimedUntil: { type: Date },
   },
   { timestamps: true }
 );

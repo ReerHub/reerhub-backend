@@ -75,5 +75,15 @@ export const updateMeSchema = z
     city: z.string().trim().max(120).optional(),
     experienceYears: z.number().min(0).max(60).optional(),
     remoteType: z.enum(['onsite', 'hybrid', 'remote', 'unknown']).optional(),
+    targetLocations: z.array(z.string().trim().min(1).max(120)).max(10).optional(),
+    availability: z.enum(['actively-looking', 'open', 'not-looking']).optional(),
+    education: z.string().trim().max(240).optional(),
+    experienceSummary: z.string().trim().max(2000).optional(),
+    notificationPreferences: z
+      .object({
+        digest: z.enum(['daily', 'weekdays', 'weekly', 'paused']).optional(),
+        instantAlerts: z.boolean().optional(),
+      })
+      .optional(),
   })
   .strict();

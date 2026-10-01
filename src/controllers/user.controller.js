@@ -14,6 +14,7 @@ import {
 import User from '../models/user.model.js';
 import Job from '../models/job.model.js';
 import SavedJob from '../models/savedJob.model.js';
+import AuthToken from '../models/authToken.model.js';
 
 const toPublicUser = (user) => ({
   id: String(user._id),
@@ -24,6 +25,7 @@ const toPublicUser = (user) => ({
   role: user.role,
   emailVerified: user.emailVerified,
   profile: user.profile || {},
+  notificationPreferences: user.notificationPreferences || {},
   createdAt: user.createdAt,
 });
 
@@ -43,8 +45,12 @@ export const updateMe = TryCatch(async (req, res) => {
     'city',
     'experienceYears',
     'remoteType',
+    'targetLocations',
+    'availability',
+    'education',
+    'experienceSummary',
   ];
-  const { name, avatarUrl, ...profilePatch } = req.validated;
+  const { name, avatarUrl, notificationPreferences, ...profilePatch } = req.validated;
 
   const update = {};
   if (name !== undefined) update.name = name;
@@ -54,9 +60,11 @@ export const updateMe = TryCatch(async (req, res) => {
       update[`profile.${key}`] = value;
     }
   });
+  if (notificationPreferences !== undefined)
+    update.notificationPreferences = notificationPreferences;
 
   const user = await User.findByIdAndUpdate(req.user._id, update, {
-    new: true,
+    returnDocument: 'after',
   }).select('-passwordHash');
   res.status(200).json({ success: true, data: toPublicUser(user) });
 });
@@ -178,6 +186,7 @@ export const exportData = TryCatch(async (req, res) => {
 
 export const deleteAccount = TryCatch(async (req, res) => {
   await SavedJob.deleteMany({ userId: req.user._id });
+  await AuthToken.deleteMany({ userId: req.user._id });
   await User.deleteOne({ _id: req.user._id });
   clearAuthCookies(res);
   res.status(200).json({ success: true, data: { deleted: true } });

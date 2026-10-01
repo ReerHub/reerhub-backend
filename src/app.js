@@ -5,7 +5,6 @@ import morgan from 'morgan';
 import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 import securityMiddlewares from './config/security.js';
-import { getRedisClient } from './config/redis.js';
 import ApiError from './utils/ApiError.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 import authRoutes from './routes/auth.routes.js';
@@ -14,6 +13,9 @@ import companyRoutes from './routes/company.routes.js';
 import jobSourceRoutes from './routes/jobSource.routes.js';
 import jobRoutes from './routes/job.routes.js';
 import syncLogRoutes from './routes/syncLog.routes.js';
+import recommendationRoutes from './routes/recommendation.routes.js';
+import billingRoutes from './routes/billing.routes.js';
+import { razorpayWebhook } from './controllers/billing.controller.js';
 
 const app = express();
 
@@ -26,6 +28,11 @@ app.set('trust proxy', 1);
 securityMiddlewares(app);
 
 // 2. PARSERS
+app.post(
+  '/api/v1/webhooks/razorpay',
+  express.raw({ type: 'application/json', limit: '1mb' }),
+  razorpayWebhook
+);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -71,7 +78,7 @@ app.use(
 
 // 5. HEALTH CHECK
 app.get('/api/v1/health', async (_req, res) => {
-  // Deep-ish readiness: ping Mongo + Redis with short timeouts.
+  // MongoDB is the only required runtime datastore.
   // Always 200 (Render liveness) — `status` degrades to 'degraded'.
   const withTimeout = (promise, ms) =>
     Promise.race([
@@ -79,24 +86,17 @@ app.get('/api/v1/health', async (_req, res) => {
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
     ]);
   let db = 'down';
-  let redis = 'down';
   try {
     await withTimeout(mongoose.connection.db.admin().ping(), 2000);
     db = 'up';
   } catch {
     // stays down
   }
-  try {
-    await withTimeout(getRedisClient().ping(), 2000);
-    redis = 'up';
-  } catch {
-    // stays down (Redis may be intentionally disconnected in some envs)
-  }
   res.status(200).json({
     success: true,
     service: 'reerhub-backend',
-    status: db === 'up' && redis === 'up' ? 'ok' : 'degraded',
-    checks: { db, redis },
+    status: db === 'up' ? 'ok' : 'degraded',
+    checks: { db },
   });
 });
 
@@ -117,6 +117,8 @@ app.use('/api/v1/companies', companyRoutes);
 app.use('/api/v1/job-sources', jobSourceRoutes);
 app.use('/api/v1/jobs', jobRoutes);
 app.use('/api/v1/sync-logs', syncLogRoutes);
+app.use('/api/v1/recommendations', recommendationRoutes);
+app.use('/api/v1/billing', billingRoutes);
 
 app.use((_req, _res, next) => {
   next(new ApiError(404, 'Route not found'));
