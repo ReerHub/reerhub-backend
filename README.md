@@ -26,7 +26,7 @@ Local `.env` points at the shared Atlas dev DB (`reerhub-dev`): reads are safe, 
 
 ## Docs
 
-`docs/DECISIONS.md` (ADRs) · `docs/CHANGELOG.md` · `docs/06-deployment.md` (Render env matrix). Start with `AGENTS.md`. Deliberately small — no new doc files without a triggering incident or requirement.
+`docs/DECISIONS.md` (ADRs) · `docs/06-deployment.md` (Render env matrix). Start with `AGENTS.md`. Deliberately small — no new doc files without a triggering incident or requirement.
 
 ## Roadmap
 

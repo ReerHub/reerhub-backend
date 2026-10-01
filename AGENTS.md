@@ -40,4 +40,4 @@ This repo is **self-contained**: product context, architecture, decisions, chang
 
 ## Docs discipline (minimal by design)
 
-`docs/` holds exactly three files: `DECISIONS.md`, `CHANGELOG.md`, `06-deployment.md` (env matrix mirrors `src/config/env.js`). README covers setup/product/roadmap. Do NOT create new doc files, TODO lists, or issue logs without a triggering incident or user-visible requirement — backlog lives in README Roadmap or GitHub Issues.
+`docs/` holds exactly two files: `DECISIONS.md`, `06-deployment.md` (env matrix mirrors `src/config/env.js`). README covers setup/product/roadmap. Do NOT create new doc files, TODO lists, or issue logs without a triggering incident or user-visible requirement — backlog lives in README Roadmap or GitHub Issues.
